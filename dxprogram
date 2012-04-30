@@ -1,0 +1,12 @@
+{
+  "name": "pyUnifiedGenotyper",
+  "dxapi": "1.03rc",
+  "version": "0.1",
+  "inputs": [
+    {"name": "sam", "class": "file"}
+  ],
+  "outputs": [
+    {"name": "rg", "class": "file"}
+  ],
+  "run": {"file": "addRg.py", "interpreter": "python2.7"}
+}
