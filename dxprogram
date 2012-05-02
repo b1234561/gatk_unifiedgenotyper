@@ -4,7 +4,9 @@
   "version": "0.1",
   "inputs": [
     {"name": "sam", "class": "file"},
-    {"name": "reference", "class": "file"},
+    {"name": "reference_sequence", "class": "file"},
+    {"name": "reference_dict", "class": "file"},
+    {"name": "reference_index", "class": "file"},
     
     {"name": "compressReference", "class": "boolean", "default": false},
     {"name": "compressNoCall", "class": "boolean", "default": false},
@@ -30,7 +32,7 @@
 
   ],
   "outputs": [
-    {"name": "rg", "class": "file"}
+    {"name": "simpleVar", "class": "gtable"}
   ],
   "run": 
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}

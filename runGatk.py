@@ -4,6 +4,9 @@ import dxpy
 import subprocess, logging
 import os
 import sys
+import re
+import math
+import operator
 
 def main():
     #os.environ["CLASSPATH"] = "/opt/jar"
@@ -14,8 +17,9 @@ def main():
         
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
     
-    referenceFileName = dxpy.download_dxfile(job['input']['reference'], "ref.fa")
-    
+    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
+    dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
+    indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
     
     print job['input']['sam']
     print "Downloading"
@@ -30,8 +34,6 @@ def main():
     subprocess.check_call("samtools index input.rg.bam", shell=True)
     
     
-    
-
     outputFile = dxpy.upload_local_file("input.rg.bam")
     print outputFile.describe()
     
@@ -41,11 +43,307 @@ def main():
     referenceFile = dxpy.upload_local_file("ref.fa")
     print referenceFile.describe()
 
+    maxLength = 16000
+    numChunks = 16
+
+    
 
     subprocess.call("java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf -out_mode EMIT_ALL_SITES", shell=True)
-
+    
+    
+    
+    
+    
+    for dirname, dirnames, filenames in os.walk('.'):
+        for subdirname in dirnames:
+            print os.path.join(dirname, subdirname)
+        for filename in filenames:
+            print os.path.join(dirname, filename)
+    
+    
+    mappings_schema = [
+            {"name": "chr", "type": "string"}, 
+            {"name": "lo", "type": "int32"},
+            {"name": "hi", "type": "int32"},
+            {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
+            {"name": "ref", "type": "string"},
+            {"name": "alt", "type": "string"},
+            {"name": "qual", "type": "int32"},
+            {"name": "coverage", "type": "int32"},
+            {"name": "genotypeQuality", "type": "int32"},    
+        ]
+    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
+    tableId = simpleVar.get_id()
+    simpleVar = dxpy.open_dxgtable(tableId)
+    
+    #Additional test
+    additionalVcf = dxpy.download_dxfile("file-9yQpxKK6v77Vjk8000X00001", "test1.vcf")
+    additionalVcf2 = dxpy.download_dxfile("file-9yQpxKK6v77Vjk8000X00001", "test2.vcf")
+    
+    
+    
+    
     outputFile = dxpy.upload_local_file("output.vcf")
-    job['output']['rg'] = outputFile.get_id()
-    print job['output']['rg'].describe()
+    print outputFile.describe()
+    print outputFile.get_id()
+    
+    parseVcf(open("output.vcf", 'r'), simpleVar)
+    parseVcf(open("test1.vcf", 'r'), simpleVar)
+    parseVcf(open("test2.vcf", 'r'), simpleVar)
+    
+    simpleVar.close(block=True)
+    print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
+    job['output']['simpleVar'] = dxpy.dxlink(simpleVar.get_id())
     
     
+    
+def mapGatk():
+    mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
+    
+    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
+    dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
+    indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
+    
+    
+    mapInput = {
+            'sam': job['input']['sam']['$dnanexus_link'],
+            'reference_sequence': job['input']['reference_sequence']['$dnanexus_link'],
+            'reference_dict': job['input']['reference_dict']['$dnanexus_link'],
+            'reference_index': job['input']['reference_index']['$dnanexus_link'],
+            'simpleVar': simpleVar,
+            'from': intervalStart,
+            'to': intervalEnd,
+            'tableId': tableId
+        }
+    
+    
+    
+
+#input will require vcfFile, simpleVar, 
+def parseVcf(vcfFile, simpleVar):
+    #
+    #compressNoCall = job['input']['compressNoCall']
+    #compressReference = job['input']['compressReference']
+    #storeFullVcf = job['input']['storeFullVcf']
+    
+    compressNoCall = False
+    compressReference = False
+    storeFullVcf = False
+    
+    header = ''
+
+    #These prior variables are used for keeping track of contiguous reference/no-call
+    #   in the event that compressReference or compressNoCall is True
+    priorType = "None"
+    priorPosition = -1
+
+    mappings_schema = [
+            {"name": "chr", "type": "string"}, 
+            {"name": "lo", "type": "int32"},
+            {"name": "hi", "type": "int32"},
+            {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
+            {"name": "ref", "type": "string"},
+            {"name": "alt", "type": "string"},
+            {"name": "qual", "type": "int32"},
+            {"name": "coverage", "type": "int32"},
+            {"name": "genotypeQuality", "type": "int32"},    
+        ]
+
+    #simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
+    #tableId = simpleVar.get_id()
+    #simpleVar = dxpy.open_dxgtable(tableId)
+
+    
+    fileIter = vcfFile.__iter__()
+    count = 1
+
+    #Additional data will contain the extra format and info columns that are optional in VCF and may not be
+    #   present in the VCF file. These are stored in an extended table 
+    additionalData = []
+    
+    while 1:
+        try:
+            input = fileIter.next()
+            if count%100000 == 0:
+                print "Processed count %i variants " % count
+            count += 1
+            
+            if input[0] == "#":
+                header += input
+                #extract additional column header data
+                if(input[1] != "#"):
+                    tabSplit = input.split("\t")
+                    additionalColumns = tabSplit[7:]
+                    
+                        
+            else:
+                tabSplit = input.split("\t")
+                chr = tabSplit[0]
+                lo = int(tabSplit[1])
+                hi = lo + len(tabSplit[3])
+                ref = tabSplit[3]
+                
+                #In VCF format, the ALT column holds possible candidate alleles. The actual call as to the
+                #   variant and its zygosity is a combination of ALT and the genotype specified in the info field.
+                #   We store all of the options (including ref) and calculated the actual calls later
+                altOptions = [ref.upper()]
+                altOptions.extend(tabSplit[4].upper().split(","))
+                qual = tabSplit[5]
+                type = "Unknown"
+                if qual == ".":
+                    type = "No-call"
+                else:
+                    qual = int(float(tabSplit[5]))
+
+                formatColumn = tabSplit[7]
+                infoColumn = tabSplit[8]
+                
+                genotypeQuality = 0
+                
+                coverage = re.findall("DP=(\d+);", formatColumn)
+                if(len(coverage) > 0):
+                    coverage = int(coverage[0])
+                else:
+                    coverage = 0
+                    
+                    
+                
+ 
+                if altOptions == [ref, '.']:
+                    if type == "No-call":
+                        if compressNoCall == False:
+                            simpleVar.add_rows([[chr, lo, hi, type, "", "", 0, 0, 0]])
+                            additionalData.append(tabSplit[7:])
+                    else:
+                        type = "Ref"
+                        if compressReference == False:
+                            simpleVar.add_rows([[chr, lo, hi, type, "", "", 0, 0, 0]])
+                            additionalData.append(tabSplit[7:])
+                            #print [chr, lo, hi, type, "", "", 0, 0, 0]
+                else:
+                    #Find all of the genotypes 
+                    genotypePossibilities = {}
+                    for x in tabSplit[9:]:
+                        genotype = getInfoField("GT", infoColumn, x)
+                        genotypeQuality = float(getInfoField("GQ", infoColumn, x))
+                        if genotype != False and genotypeQuality != False:
+                            if genotypePossibilities.get(genotype) == None:
+                                genotypePossibilities[genotype] = float(genotypeQuality)
+                            else:
+                                genotypePossibilities[genotype] += float(genotypeQuality)
+                        else:
+                            genotypeQuality = 0
+                    genotypePossibilities = sorted(genotypePossibilities.iteritems(), key=operator.itemgetter(1), reverse=True)
+                    genotype = genotypePossibilities[0][0]
+                    genotypeQuality = genotypePossibilities[0][1]
+                    if len(genotypePossibilities) > 1:
+                        genotypeQuality -= genotypePossibilities[1][1]
+                    alt = ""
+                    if genotype == "0/0" or genotype == "0|0" or genotype == False:
+                        if(len(genotypePossibilities) > 1):
+                            genotype = genotypePossibilities[1][0]
+                            genotypeQuality = 0
+                            
+                    genotypeSplit = re.split("[\|\/]", genotype)
+                    for i in range(len(genotypeSplit)):
+                        
+                    #This is done to ensure the convention of placing the ref allele first
+                    #   in practice, it seems that all VCFs already place the ref first
+                        genotypeSplit[i] = int(genotypeSplit[i])
+                    genotypeSplit.sort()
+
+                    #In VCF format, the prior character to a sequence change is given in some cases (Ins, Del)
+                    #   we are removing this in our format, and so need to figure out which characters to filter   
+                    overlap = findMatchingSequence(ref, altOptions)
+
+                    for x in genotypeSplit:
+                        if len(alt) > 0:
+                            alt += "/"
+                        alt += altOptions[x][overlap:]
+                        if len(altOptions[x][overlap:]) == 0:
+                            alt += "-"
+                        typeList = []                
+                        #These rules determine how to characterize the type of change that has occurred
+                        for x in altOptions:
+                            if len(x) == len(ref) and len(ref) == 1:
+                                type = "SNP"
+                            elif ref in x:
+                                type = "Ins"
+                            elif x in ref:
+                                type = "Del"
+                            else:
+                                type = "Complex"
+                            for x in typeList[1::]:
+                                if typeList[0] != x:
+                                    type = "Mixed"
+                        
+                    ref = ref[overlap:]
+                    if len(ref) == 0:
+                        ref = "-"
+                    simpleVar.add_rows([[chr, lo-overlap, lo+len(ref[overlap:]), type, ref[overlap:], alt, qual, coverage, int(genotypeQuality)]])
+                    additionalData.append(tabSplit[7:])
+                if compressReference:
+                    if priorType == "Ref" and type != priorType:
+                        simpleVar.add_rows([[chr, priorPosition, hi, type, "", "", 0, 0, 0]])
+                        additionalData.append(generateEmptyList(len(additionalColumns)))
+                if compressNoCall:
+                    if priorType == "No-call" and type != priorType:
+                        simpleVar.add_rows([[chr, priorPosition, hi, type, "", "", 0, 0, 0]])
+                        additionalData.append(generateEmptyList(len(additionalColumns)))
+                if type != priorType:
+                    priorType = type
+                    priorPosition = lo 
+        except StopIteration:
+            break
+        
+    #simpleVar.set_details({"header":header})    
+    #simpleVar.close(block=True)
+    #print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
+    #job['output']['simplevar'] = dxpy.dxlink(simpleVar.get_id())
+    #
+    #if storeFullVcf:
+    #    extension = []
+    #    for x in additionalColumns:
+    #        extension.append({"name":x, "type":"string"})
+    #            
+    #    vcfTable = simpleVar.extend(extension)
+    #    vcfTable.add_rows(additionalData)
+    #    vcfTable.set_details({"header":header})    
+    #    vcfTable.close(block=True)
+    #    
+    #    print "Full VCF table" + json.dumps({'table_id':vcfTable.get_id()})
+    #    
+    #    job['output']['extendedvar'] = dxpy.dxlink(vcfTable.get_id())
+    
+    
+
+def findMatchingSequence(ref, altOptions):
+    position = 0
+    minLength = len(ref)
+    for x in altOptions:
+        if len(x) < minLength:
+            minLength = len(x)
+    for i in range(minLength):
+        for x in altOptions:
+            if ref[i] != x[i]:
+                return i
+    return minLength
+
+def getInfoField(fieldName, infoColumn, infoContents):
+    if infoColumn.count(fieldName) > 0:
+        entrySplitColumn = infoColumn.split(":")
+        position = -1
+        for i in range(len(entrySplitColumn)):
+            if entrySplitColumn[i] == fieldName:
+                position = i
+                entrySplitInfo = infoContents.split(":")
+                if len(entrySplitInfo) == len(entrySplitColumn):
+                    return entrySplitInfo[position]
+    return False
+    
+def generateEmptyList(columns):
+    result = []
+    for i in range(columns):
+        result.append('')
+    return result
+                    
