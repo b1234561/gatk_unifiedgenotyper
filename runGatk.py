@@ -11,8 +11,6 @@ import operator
 def main():
     #os.environ["CLASSPATH"] = "/opt/jar"
 
-    print "here"
-
     mappings_schema = [
             {"name": "chr", "type": "string"}, 
             {"name": "lo", "type": "int32"},
@@ -30,15 +28,11 @@ def main():
     simpleVar = dxpy.open_dxgtable(tableId)
     
     maxLength = 16000
-    chunkSize = 1000
+    chunkSize = 16000
     
-    testFile = open("testFile.txt", 'w')
-    testFile.write("blah")
-    testFile.close()
-    print "there"
-    
+    reduceInput = {}
 
-    for i in range(0, maxLength, chunkSize):
+    for i in range(1, maxLength, chunkSize):
         intervalStart = i
         intervalEnd = min(intervalStart + chunkSize - 1, maxLength - 1)
         mapInput = {
@@ -52,11 +46,13 @@ def main():
         }
         # Run a "map" job for each chunk
         mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
+        reduceInput["mapJob" + str(i) + "TableId"] = {'job': mapJobId, 'field': 'id'}
 
-    simpleVar.close(block=True)
-    print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
-    job['output']['simpleVar'] = dxpy.dxlink(simpleVar.get_id())
-    
+
+    reduceInput['tableId'] = tableId
+    reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
+    #print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})
+    job['output'] = {'simplevar': {'job': reduceJobId, 'field': 'simplevar'}}
     
     
 def mapGatk():
@@ -81,18 +77,64 @@ def mapGatk():
     subprocess.check_call("samtools index input.rg.bam", shell=True)
     
     command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf -out_mode EMIT_ALL_SITES -L chrM:"
-    command += str(job['input']['from'])+"-"+str(job['from']['to'])
+    command += str(job['input']['from'])+"-"+str(job['input']['to'])
         
     subprocess.call(command, shell=True)
     parseVcf(open("output.vcf", 'r'), simpleVar)
+
+
+def buildCommand(job):
     
-    for dirname, dirnames, filenames in os.walk('.'):
-        for subdirname in dirnames:
-            print os.path.join(dirname, subdirname)
-        for filename in filenames:
-            print os.path.join(dirname, filename)
+    command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf "
+    command += " -stand_call_conf " +str(job['input']['call_confidence'])
+    command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
+    command += " -pcr_error " +str(job['input']['pcr_error_rate'])
+    command += " -hets " + str(job['input']['heterozygosity'])
+    command += " -indelHeterozygosity" + str(job['input']['indel_heterozygosity'])
+    command += " -glm " + job['input']['genotype_likelihood_model']
+    command += " -mbq " + str(job['input']['minimum_base_quality'])
+    command += " -maxAlleles " + str(job['input']['max_alternate_alleles'])
+    command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     
     
+    
+    {"name": "sam", "class": "file"},
+    {"name": "reference_sequence", "class": "file"},
+    {"name": "reference_dict", "class": "file"},
+    {"name": "reference_index", "class": "file"},
+    
+    {"name": "compressReference", "class": "boolean", "default": false},
+    {"name": "compressNoCall", "class": "boolean", "default": false},
+    {"name": "storeFullVcf", "class": "boolean", "default": true},
+    
+    
+    
+    {"name": "call_confidence", "class": "float", "default": 30.0},
+    {"name": "emit_confidence", "class": "float", "default": 30.0},
+    {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
+    {"name": "heterozygosity", "class": "float", "default": 0.001},
+    {"name": "indel_heterozygosity", "class": "float", "default": 0.000125},
+    {"name": "genotype_likelihood_model", "class": "string", "default":"SNP"},
+    {"name": "minimum_base_quality", "class": "int", "default":17},
+    {"name": "max_alternate_alleles", "class": "int", "default":3},
+    {"name": "max_deletion_fraction", "class": "float", "default":0.05},
+    {"name": "min_indel_count", "class": "int", "default":5},
+    {"name": "non_reference_probability_model", "class": "string", "default":"EXACT"},
+    {"name": "intervals_to_process", "class":"string", "optional":true},
+    {"name": "intervals_to_exclude", "class":"string", "optional":true},
+    {"name": "intervals_merging", "class":"string", "default":"UNION"},
+    {"name": "downsample_to_coverage", "class":"int", "optional":true},
+    {"name": "nondeterministic", "class":"boolean", "default":false}
+    
+    
+
+
+
+
+def reduceGatk():
+    t = dxpy.open_dxgtable(job['input']['tableId'])
+    t.close(block=True)
+    job['output']['simpleVar'] = t.get_id()
     
 
 #input will require vcfFile, simpleVar, 
