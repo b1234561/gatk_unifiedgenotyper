@@ -11,56 +11,8 @@ import operator
 def main():
     #os.environ["CLASSPATH"] = "/opt/jar"
 
-    
-    if "CLASSPATH" in os.environ: classpath = os.environ["CLASSPATH"].split(":")
-    else: classpath = []
-        
-    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
-    
-    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
-    dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
-    indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
-    
-    print job['input']['sam']
-    print "Downloading"
-    inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
-    print "Converting to BAM"
-    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
-    print "Sorting"
-    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
-    print "Adding Read Groups"
-    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
-    print "Indexing"
-    subprocess.check_call("samtools index input.rg.bam", shell=True)
-    
-    
-    outputFile = dxpy.upload_local_file("input.rg.bam")
-    print outputFile.describe()
-    
-    indexFile = dxpy.upload_local_file("input.rg.bam.bai")
-    print indexFile.describe()
+    print "here"
 
-    referenceFile = dxpy.upload_local_file("ref.fa")
-    print referenceFile.describe()
-
-    maxLength = 16000
-    numChunks = 16
-
-    
-
-    subprocess.call("java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf -out_mode EMIT_ALL_SITES", shell=True)
-    
-    
-    
-    
-    
-    for dirname, dirnames, filenames in os.walk('.'):
-        for subdirname in dirnames:
-            print os.path.join(dirname, subdirname)
-        for filename in filenames:
-            print os.path.join(dirname, filename)
-    
-    
     mappings_schema = [
             {"name": "chr", "type": "string"}, 
             {"name": "lo", "type": "int32"},
@@ -72,25 +24,35 @@ def main():
             {"name": "coverage", "type": "int32"},
             {"name": "genotypeQuality", "type": "int32"},    
         ]
+
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
     
-    #Additional test
-    additionalVcf = dxpy.download_dxfile("file-9yQpxKK6v77Vjk8000X00001", "test1.vcf")
-    additionalVcf2 = dxpy.download_dxfile("file-9yQpxKK6v77Vjk8000X00001", "test2.vcf")
+    maxLength = 16000
+    chunkSize = 1000
     
+    testFile = open("testFile.txt", 'w')
+    testFile.write("blah")
+    testFile.close()
+    print "there"
     
-    
-    
-    outputFile = dxpy.upload_local_file("output.vcf")
-    print outputFile.describe()
-    print outputFile.get_id()
-    
-    parseVcf(open("output.vcf", 'r'), simpleVar)
-    parseVcf(open("test1.vcf", 'r'), simpleVar)
-    parseVcf(open("test2.vcf", 'r'), simpleVar)
-    
+
+    for i in range(0, maxLength, chunkSize):
+        intervalStart = i
+        intervalEnd = min(intervalStart + chunkSize - 1, maxLength - 1)
+        mapInput = {
+            'sam': job['input']['sam']['$dnanexus_link'],
+            'reference_sequence': job['input']['reference_sequence']['$dnanexus_link'],
+            'reference_dict': job['input']['reference_dict']['$dnanexus_link'],
+            'reference_index': job['input']['reference_index']['$dnanexus_link'],
+            'from': intervalStart,
+            'to': intervalEnd,
+            'tableId': tableId
+        }
+        # Run a "map" job for each chunk
+        mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
+
     simpleVar.close(block=True)
     print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
     job['output']['simpleVar'] = dxpy.dxlink(simpleVar.get_id())
@@ -98,23 +60,37 @@ def main():
     
     
 def mapGatk():
-    mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
+    print "In GATK"
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
     
     referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
     dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
     indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
     
+    simpleVar = dxpy.open_dxgtable(job['input']['tableId'])
     
-    mapInput = {
-            'sam': job['input']['sam']['$dnanexus_link'],
-            'reference_sequence': job['input']['reference_sequence']['$dnanexus_link'],
-            'reference_dict': job['input']['reference_dict']['$dnanexus_link'],
-            'reference_index': job['input']['reference_index']['$dnanexus_link'],
-            'simpleVar': simpleVar,
-            'from': intervalStart,
-            'to': intervalEnd,
-            'tableId': tableId
-        }
+    print "Downloading"
+    inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
+    print "Converting to BAM"
+    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+    print "Sorting"
+    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
+    print "Adding Read Groups"
+    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
+    print "Indexing"
+    subprocess.check_call("samtools index input.rg.bam", shell=True)
+    
+    command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf -out_mode EMIT_ALL_SITES -L chrM:"
+    command += str(job['input']['from'])+"-"+str(job['from']['to'])
+        
+    subprocess.call(command, shell=True)
+    parseVcf(open("output.vcf", 'r'), simpleVar)
+    
+    for dirname, dirnames, filenames in os.walk('.'):
+        for subdirname in dirnames:
+            print os.path.join(dirname, subdirname)
+        for filename in filenames:
+            print os.path.join(dirname, filename)
     
     
     
