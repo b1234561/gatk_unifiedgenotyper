@@ -5,8 +5,7 @@
   "inputs": [
     {"name": "sam", "class": "file"},
     {"name": "reference_sequence", "class": "file"},
-    {"name": "reference_dict", "class": "file"},
-    {"name": "reference_index", "class": "file"},
+    {"name": "reference_contig_set", "class": "record", "type": "ContigSet", "optional": true},
     
     {"name": "compressReference", "class": "boolean", "default": false},
     {"name": "compressNoCall", "class": "boolean", "default": false},
