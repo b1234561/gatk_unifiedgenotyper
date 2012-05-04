@@ -11,9 +11,7 @@
     {"name": "compressReference", "class": "boolean", "default": false},
     {"name": "compressNoCall", "class": "boolean", "default": false},
     {"name": "storeFullVcf", "class": "boolean", "default": true},
-    
-    
-    
+
     {"name": "call_confidence", "class": "float", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "default": 30.0},
     {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
@@ -28,13 +26,15 @@
     {"name": "intervals_to_process", "class":"string", "optional":true},
     {"name": "intervals_to_exclude", "class":"string", "optional":true},
     {"name": "intervals_merging", "class":"string", "default":"UNION"},
-    {"name": "downsample_to_coverage", "class":"int", "optional":true},
+    {"name": "downsample_to_coverage", "class":"int", "default":50000},
+    {"name": "downsample_to_fraction", "class":"float", "default":1.0},
+    {"name": "downsampling_type", "class":"string", "default":"NONE"},
     {"name": "nondeterministic", "class":"boolean", "default":false}
     
 
   ],
   "outputs": [
-    {"name": "simpleVar", "class": "gtable"}
+    {"name": "simplevar", "class": "gtable"}
   ],
   "run": 
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}
