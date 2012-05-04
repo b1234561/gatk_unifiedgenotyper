@@ -38,9 +38,6 @@ class TestMyApp(unittest.TestCase):
         print "Waiting for job to complete"
         job.wait_on_done()
         print json.dumps(job.describe()["output"])
-        
-        print left_reads, right_reads
-        # Test program here
 
 
 if __name__ == '__main__':

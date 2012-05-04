@@ -42,7 +42,8 @@ def main():
             'reference_index': job['input']['reference_index']['$dnanexus_link'],
             'from': intervalStart,
             'to': intervalEnd,
-            'tableId': tableId
+            'tableId': tableId,
+            'command': buildCommand(job)
         }
         # Run a "map" job for each chunk
         mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
@@ -65,6 +66,9 @@ def mapGatk():
     
     simpleVar = dxpy.open_dxgtable(job['input']['tableId'])
     
+    command = job['input']['command'] + " -L chrM:" + str(job['input']['from'])+"-"+str(job['input']['to'])
+    print command
+    
     print "Downloading"
     inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
     print "Converting to BAM"
@@ -75,10 +79,7 @@ def mapGatk():
     subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
     print "Indexing"
     subprocess.check_call("samtools index input.rg.bam", shell=True)
-    
-    command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf -out_mode EMIT_ALL_SITES -L chrM:"
-    command += str(job['input']['from'])+"-"+str(job['input']['to'])
-        
+
     subprocess.call(command, shell=True)
     parseVcf(open("output.vcf", 'r'), simpleVar)
 
@@ -90,51 +91,34 @@ def buildCommand(job):
     command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
     command += " -pcr_error " +str(job['input']['pcr_error_rate'])
     command += " -hets " + str(job['input']['heterozygosity'])
-    command += " -indelHeterozygosity" + str(job['input']['indel_heterozygosity'])
+    command += " -indelHeterozygosity " + str(job['input']['indel_heterozygosity'])
     command += " -glm " + job['input']['genotype_likelihood_model']
     command += " -mbq " + str(job['input']['minimum_base_quality'])
     command += " -maxAlleles " + str(job['input']['max_alternate_alleles'])
+    command += " -deletions " + str(job['input']['max_deletion_fraction'])
     command += " -minIndelCnt " + str(job['input']['min_indel_count'])
+    command += " -pnrm " + str(job['input']['non_reference_probability_model'])
     
     
     
-    {"name": "sam", "class": "file"},
-    {"name": "reference_sequence", "class": "file"},
-    {"name": "reference_dict", "class": "file"},
-    {"name": "reference_index", "class": "file"},
-    
-    {"name": "compressReference", "class": "boolean", "default": false},
-    {"name": "compressNoCall", "class": "boolean", "default": false},
-    {"name": "storeFullVcf", "class": "boolean", "default": true},
-    
-    
-    
-    {"name": "call_confidence", "class": "float", "default": 30.0},
-    {"name": "emit_confidence", "class": "float", "default": 30.0},
-    {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
-    {"name": "heterozygosity", "class": "float", "default": 0.001},
-    {"name": "indel_heterozygosity", "class": "float", "default": 0.000125},
-    {"name": "genotype_likelihood_model", "class": "string", "default":"SNP"},
-    {"name": "minimum_base_quality", "class": "int", "default":17},
-    {"name": "max_alternate_alleles", "class": "int", "default":3},
-    {"name": "max_deletion_fraction", "class": "float", "default":0.05},
-    {"name": "min_indel_count", "class": "int", "default":5},
-    {"name": "non_reference_probability_model", "class": "string", "default":"EXACT"},
-    {"name": "intervals_to_process", "class":"string", "optional":true},
-    {"name": "intervals_to_exclude", "class":"string", "optional":true},
-    {"name": "intervals_merging", "class":"string", "default":"UNION"},
-    {"name": "downsample_to_coverage", "class":"int", "optional":true},
-    {"name": "nondeterministic", "class":"boolean", "default":false}
-    
-    
+    if job['input']['downsample_to_coverage'] != 50000:
+        command += " -dcov " + str(job['input']['downsample_to_coverage'])
+    elif job['input']['downsample_to_fraction'] != 1.0:
+        command += " -dfrac " + str(job['input']['downsample_to_fraction'])
 
+    command += " -dt " + job['input']['downsampling_type']
+    if job['input']['nondeterministic']:
+        command += " -ndrs "
+    print command
+    return command
 
 
 
 def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
     t.close(block=True)
-    job['output']['simpleVar'] = t.get_id()
+    print "Closing Table"
+    job['output']['simplevar'] = dxpy.dxlink(t.get_id())
     
 
 #input will require vcfFile, simpleVar, 
