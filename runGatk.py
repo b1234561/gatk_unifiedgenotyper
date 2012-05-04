@@ -10,6 +10,8 @@ import operator
 
 def main():
     #os.environ["CLASSPATH"] = "/opt/jar"
+    
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
 
     mappings_schema = [
             {"name": "chr", "type": "string"}, 
@@ -27,8 +29,31 @@ def main():
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
     
+    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
+    print "Indexing Dictionary"
+    subprocess.check_call("java net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
+    subprocess.check_call("samtools faidx ref.fa", shell=True)
+    
+    
+    referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
+    referenceIndex = dxpy.dxlink(dxpy.upload_local_file("ref.fa.fai"))
+    
     maxLength = 16000
     chunkSize = 16000
+    
+    print "Downloading"
+    inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
+    print "Converting to BAM"
+    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+    print "Sorting"
+    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
+    print "Adding Read Groups"
+    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
+    print "Indexing"
+    subprocess.check_call("samtools index input.rg.bam", shell=True)
+    
+    bam = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam"))
+    bamIndex = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam.bai"))
     
     reduceInput = {}
 
@@ -36,10 +61,11 @@ def main():
         intervalStart = i
         intervalEnd = min(intervalStart + chunkSize - 1, maxLength - 1)
         mapInput = {
-            'sam': job['input']['sam']['$dnanexus_link'],
+            'bam': bam,
+            'bam_index': bamIndex,
             'reference_sequence': job['input']['reference_sequence']['$dnanexus_link'],
-            'reference_dict': job['input']['reference_dict']['$dnanexus_link'],
-            'reference_index': job['input']['reference_index']['$dnanexus_link'],
+            'reference_dict': referenceDictionary,
+            'reference_index': referenceIndex,
             'from': intervalStart,
             'to': intervalEnd,
             'tableId': tableId,
@@ -64,22 +90,14 @@ def mapGatk():
     dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
     indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
     
+    dxpy.download_dxfile(job['input']['bam'], "input.rg.bam")
+    dxpy.download_dxfile(job['input']['bam_index'], "input.rg.bam.bai")
+    
     simpleVar = dxpy.open_dxgtable(job['input']['tableId'])
     
     command = job['input']['command'] + " -L chrM:" + str(job['input']['from'])+"-"+str(job['input']['to'])
     print command
     
-    print "Downloading"
-    inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
-    print "Converting to BAM"
-    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
-    print "Sorting"
-    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
-    print "Adding Read Groups"
-    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
-    print "Indexing"
-    subprocess.check_call("samtools index input.rg.bam", shell=True)
-
     subprocess.call(command, shell=True)
     parseVcf(open("output.vcf", 'r'), simpleVar)
 
@@ -98,8 +116,6 @@ def buildCommand(job):
     command += " -deletions " + str(job['input']['max_deletion_fraction'])
     command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     command += " -pnrm " + str(job['input']['non_reference_probability_model'])
-    
-    
     
     if job['input']['downsample_to_coverage'] != 50000:
         command += " -dcov " + str(job['input']['downsample_to_coverage'])
@@ -207,10 +223,7 @@ def parseVcf(vcfFile, simpleVar):
                     coverage = int(coverage[0])
                 else:
                     coverage = 0
-                    
-                    
-                
- 
+
                 if altOptions == [ref, '.']:
                     if type == "No-call":
                         if compressNoCall == False:
@@ -298,7 +311,7 @@ def parseVcf(vcfFile, simpleVar):
         except StopIteration:
             break
         
-    #simpleVar.set_details({"header":header})    
+    simpleVar.set_details({"header":header})    
     #simpleVar.close(block=True)
     #print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
     #job['output']['simplevar'] = dxpy.dxlink(simpleVar.get_id())

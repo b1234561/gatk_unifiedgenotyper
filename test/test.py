@@ -22,13 +22,9 @@ class TestMyApp(unittest.TestCase):
     def test_gatk(self):
         sam = dxpy.upload_local_file(os.path.join(test_resources_dir, "reads.sam"), wait_on_close=True)
         reference_sequence = dxpy.upload_local_file(os.path.join(test_resources_dir, "ref.fa"), wait_on_close=True)
-        reference_dict = dxpy.upload_local_file(os.path.join(test_resources_dir, "ref.dict"), wait_on_close=True)
-        reference_index = dxpy.upload_local_file(os.path.join(test_resources_dir, "ref.fa.fai"), wait_on_close=True)
         
         program_input = {"sam": dxpy.dxlink(sam),
                          "reference_sequence": dxpy.dxlink(reference_sequence),
-                         "reference_dict": dxpy.dxlink(reference_dict),
-                         "reference_index": dxpy.dxlink(reference_index)
                          }
         
         print program_input
