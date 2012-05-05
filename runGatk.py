@@ -9,37 +9,20 @@ import math
 import operator
 
 def main():
-    #os.environ["CLASSPATH"] = "/opt/jar"
     
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
 
-    mappings_schema = [
-            {"name": "chr", "type": "string"}, 
-            {"name": "lo", "type": "int32"},
-            {"name": "hi", "type": "int32"},
-            {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
-            {"name": "ref", "type": "string"},
-            {"name": "alt", "type": "string"},
-            {"name": "qual", "type": "int32"},
-            {"name": "coverage", "type": "int32"},
-            {"name": "genotypeQuality", "type": "int32"},    
-        ]
-
-    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
-    tableId = simpleVar.get_id()
-    simpleVar = dxpy.open_dxgtable(tableId)
+    subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['reference_contig_set']['$dnanexus_link']), shell=True)
+    reference_sequence = dxpy.dxlink(dxpy.upload_local_file("ref.fa"))
     
-    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
+    #referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
     print "Indexing Dictionary"
     subprocess.check_call("java net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     
-    
     referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
     referenceIndex = dxpy.dxlink(dxpy.upload_local_file("ref.fa.fai"))
     
-    maxLength = 16000
-    chunkSize = 16000
     
     print "Downloading"
     inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
@@ -55,26 +38,53 @@ def main():
     bam = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam"))
     bamIndex = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam.bai"))
     
+   
+    mappings_schema = [
+            {"name": "chr", "type": "string"}, 
+            {"name": "lo", "type": "int32"},
+            {"name": "hi", "type": "int32"},
+            {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
+            {"name": "ref", "type": "string"},
+            {"name": "alt", "type": "string"},
+            {"name": "qual", "type": "int32"},
+            {"name": "coverage", "type": "int32"},
+            {"name": "genotypeQuality", "type": "int32"},    
+        ]
+    
+    ##Run the trivial case to find the columns
+    trivialOutput = runTrivialTest(job['input']['reference_contig_set'], buildCommand(job))
+    
+    for x in trivialOutput['additionalColumns']:
+        mappings_schema.append({"name": x.strip(), "type": "string"})
+    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
+    tableId = simpleVar.get_id()
+    simpleVar = dxpy.open_dxgtable(tableId)
+    simpleVar.set_details({'header':trivialOutput['header']})
+    
     reduceInput = {}
 
-    for i in range(1, maxLength, chunkSize):
-        intervalStart = i
-        intervalEnd = min(intervalStart + chunkSize - 1, maxLength - 1)
-        mapInput = {
-            'bam': bam,
-            'bam_index': bamIndex,
-            'reference_sequence': job['input']['reference_sequence']['$dnanexus_link'],
-            'reference_dict': referenceDictionary,
-            'reference_index': referenceIndex,
-            'from': intervalStart,
-            'to': intervalEnd,
-            'tableId': tableId,
-            'command': buildCommand(job)
-        }
-        # Run a "map" job for each chunk
-        mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
-        reduceInput["mapJob" + str(i) + "TableId"] = {'job': mapJobId, 'field': 'id'}
-
+    commandList = splitGenomeLength(job['input']['reference_contig_set'], job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+        
+    for i in range(len(commandList)):
+        print commandList[i]
+        if len(commandList[i]) > 0:         
+            mapInput = {
+                'bam': bam,
+                'bam_index': bamIndex,
+                'reference_sequence': reference_sequence,
+                'reference_dict': referenceDictionary,
+                'reference_index': referenceIndex,
+                'interval': commandList[i],
+                'tableId': tableId,
+                'command': buildCommand(job),
+                'compress_reference': job['input']['compress_reference'],
+                'compress_no_call' : job['input']['compress_no_call'],
+                'store_full_vcf' : job['input']['store_full_vcf']
+                
+            }
+            # Run a "map" job for each chunk
+            mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
+            reduceInput["mapJob" + str(i) + "TableId"] = {'job': mapJobId, 'field': 'id'}
 
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
@@ -84,7 +94,7 @@ def main():
     
 def mapGatk():
     print "In GATK"
-    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
+    os.environ['CLASSPATH'] = '/opt/jar/GenomeAnalysisTK.jar'
     
     referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
     dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
@@ -95,11 +105,11 @@ def mapGatk():
     
     simpleVar = dxpy.open_dxgtable(job['input']['tableId'])
     
-    command = job['input']['command'] + " -L chrM:" + str(job['input']['from'])+"-"+str(job['input']['to'])
+    command = job['input']['command'] + job['input']['interval']
     print command
     
     subprocess.call(command, shell=True)
-    parseVcf(open("output.vcf", 'r'), simpleVar)
+    parseVcf(open("output.vcf", 'r'), simpleVar, job['input']['compress_reference'], job['input']['compress_no_call'], job['input']['store_full_vcf'])
 
 
 def buildCommand(job):
@@ -128,50 +138,53 @@ def buildCommand(job):
     print command
     return command
 
+def runTrivialTest(contig_set, command):
+    details = dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
+    sizes = details['contigs']['sizes']
+    names = details['contigs']['names']
+    offsets = details['contigs']['offsets']
 
+    for i in range(len(names)):
+        if sizes[i] > 0:
+            chromosome = names[i]
+            break
+    command += ' -L ' + chromosome+':1-1'
+    subprocess.call(command, shell=True)
+    return extractHeader(open("output.vcf", 'r'))
+    
 
+def extractHeader(vcfFile):
+    header = ''
+    fileIter = vcfFile.__iter__()
+
+    #Additional data will contain the extra format and info columns that are optional in VCF and may not be
+    #   present in the VCF file. These are stored in an extended table 
+    additionalColumns = []
+    while 1:
+        try:
+            input = fileIter.next()
+            if input[0] == "#":
+                header += input
+                #extract additional column header data
+                if(input[1] != "#"):
+                    tabSplit = input.split("\t")
+                    return {'header': header, 'additionalColumns': tabSplit[7:]}
+        except StopIteration:
+            break
+    
 def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
     t.close(block=True)
     print "Closing Table"
     job['output']['simplevar'] = dxpy.dxlink(t.get_id())
     
-
-#input will require vcfFile, simpleVar, 
-def parseVcf(vcfFile, simpleVar):
-    #
-    #compressNoCall = job['input']['compressNoCall']
-    #compressReference = job['input']['compressReference']
-    #storeFullVcf = job['input']['storeFullVcf']
-    
-    compressNoCall = False
-    compressReference = False
-    storeFullVcf = False
-    
-    header = ''
+def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf):
 
     #These prior variables are used for keeping track of contiguous reference/no-call
     #   in the event that compressReference or compressNoCall is True
     priorType = "None"
     priorPosition = -1
 
-    mappings_schema = [
-            {"name": "chr", "type": "string"}, 
-            {"name": "lo", "type": "int32"},
-            {"name": "hi", "type": "int32"},
-            {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
-            {"name": "ref", "type": "string"},
-            {"name": "alt", "type": "string"},
-            {"name": "qual", "type": "int32"},
-            {"name": "coverage", "type": "int32"},
-            {"name": "genotypeQuality", "type": "int32"},    
-        ]
-
-    #simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
-    #tableId = simpleVar.get_id()
-    #simpleVar = dxpy.open_dxgtable(tableId)
-
-    
     fileIter = vcfFile.__iter__()
     count = 1
 
@@ -186,15 +199,7 @@ def parseVcf(vcfFile, simpleVar):
                 print "Processed count %i variants " % count
             count += 1
             
-            if input[0] == "#":
-                header += input
-                #extract additional column header data
-                if(input[1] != "#"):
-                    tabSplit = input.split("\t")
-                    additionalColumns = tabSplit[7:]
-                    
-                        
-            else:
+            if input[0] != "#":
                 tabSplit = input.split("\t")
                 chr = tabSplit[0]
                 lo = int(tabSplit[1])
@@ -295,42 +300,27 @@ def parseVcf(vcfFile, simpleVar):
                     ref = ref[overlap:]
                     if len(ref) == 0:
                         ref = "-"
-                    simpleVar.add_rows([[chr, lo-overlap, lo+len(ref[overlap:]), type, ref[overlap:], alt, qual, coverage, int(genotypeQuality)]])
-                    additionalData.append(tabSplit[7:])
+                    entry = [chr, lo-overlap, lo+len(ref[overlap:]), type, ref[overlap:], alt, qual, coverage, int(genotypeQuality)]
+                    for x in tabSplit[7:]:
+                        entry.append(x)
+                    simpleVar.add_rows([entry])
                 if compressReference:
                     if priorType == "Ref" and type != priorType:
-                        simpleVar.add_rows([[chr, priorPosition, hi, type, "", "", 0, 0, 0]])
-                        additionalData.append(generateEmptyList(len(additionalColumns)))
+                        entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
+                        for x in additionalColumns:
+                            entry.append(x)
+                        simpleVar.add_rows([entry])                        
                 if compressNoCall:
                     if priorType == "No-call" and type != priorType:
-                        simpleVar.add_rows([[chr, priorPosition, hi, type, "", "", 0, 0, 0]])
-                        additionalData.append(generateEmptyList(len(additionalColumns)))
+                        entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
+                        for x in additionalColumns:
+                            entry.append(x)
+                        simpleVar.add_rows([entry])
                 if type != priorType:
                     priorType = type
                     priorPosition = lo 
         except StopIteration:
             break
-        
-    simpleVar.set_details({"header":header})    
-    #simpleVar.close(block=True)
-    #print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})    
-    #job['output']['simplevar'] = dxpy.dxlink(simpleVar.get_id())
-    #
-    #if storeFullVcf:
-    #    extension = []
-    #    for x in additionalColumns:
-    #        extension.append({"name":x, "type":"string"})
-    #            
-    #    vcfTable = simpleVar.extend(extension)
-    #    vcfTable.add_rows(additionalData)
-    #    vcfTable.set_details({"header":header})    
-    #    vcfTable.close(block=True)
-    #    
-    #    print "Full VCF table" + json.dumps({'table_id':vcfTable.get_id()})
-    #    
-    #    job['output']['extendedvar'] = dxpy.dxlink(vcfTable.get_id())
-    
-    
 
 def findMatchingSequence(ref, altOptions):
     position = 0
@@ -361,4 +351,44 @@ def generateEmptyList(columns):
     for i in range(columns):
         result.append('')
     return result
-                    
+    
+def splitGenomeLength(contig_set, chunkSize, splits):
+    print contig_set
+    print dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
+    details = dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
+    sizes = details['contigs']['sizes']
+    names = details['contigs']['names']
+    offsets = details['contigs']['offsets']
+    
+    print names
+    print sizes
+    print offsets
+    
+    commandList = []
+    position = 0
+    chromosome = 0
+    currentChunk = 0
+    for i in range(splits):
+        commandList.append('')
+    
+    while chromosome < len(names):
+        if position + chunkSize >= sizes[chromosome]:
+            print chromosome
+            commandList[currentChunk] += " -L %s:%d-%d" % (names[chromosome], position+1, sizes[chromosome])
+            chromosome += 1
+            position = 0
+        else:
+            commandList[currentChunk] += " -L %s:%d-%d" % (names[chromosome], position+1, position+chunkSize+1)
+            position += chunkSize
+        currentChunk = (currentChunk+1)%splits
+    
+    return commandList
+    
+    
+    
+    
+    
+    
+    
+    
+    

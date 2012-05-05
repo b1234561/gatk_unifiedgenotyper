@@ -4,12 +4,14 @@
   "version": "0.1",
   "inputs": [
     {"name": "sam", "class": "file"},
-    {"name": "reference_sequence", "class": "file"},
-    {"name": "reference_contig_set", "class": "record", "type": "ContigSet", "optional": true},
+    {"name": "reference_contig_set", "class": "record", "type": "ContigSet"},
     
-    {"name": "compressReference", "class": "boolean", "default": false},
-    {"name": "compressNoCall", "class": "boolean", "default": false},
-    {"name": "storeFullVcf", "class": "boolean", "default": true},
+    {"name": "compress_reference", "class": "boolean", "default": false},
+    {"name": "compress_no_call", "class": "boolean", "default": false},
+    {"name": "store_full_vcf", "class": "boolean", "default": true},
+    
+    {"name": "minimum_chunk_size", "class": "int", "default":100000},
+    {"name": "maximum_chunks", "class": "int", "default":5},
 
     {"name": "call_confidence", "class": "float", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "default": 30.0},
@@ -37,6 +39,4 @@
   ],
   "run": 
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}
-    
-    
 }
