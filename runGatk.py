@@ -116,6 +116,7 @@ def mapGatk():
 def buildCommand(job):
     
     command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf "
+    command += " -out_mode " + (job['input']['output_mode'])
     command += " -stand_call_conf " +str(job['input']['call_confidence'])
     command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
     command += " -pcr_error " +str(job['input']['pcr_error_rate'])

@@ -26,7 +26,7 @@ def makeInputs():
     print contig_set
 
     return {"reference_contig_set": contig_set, 'sam':dxpy.dxlink(sam), 'minimum_chunk_size':1000, 'maximum_chunks':5,
-            "intervals_to_process":"-L chrM:1-8000", "intervals_to_exclude":"-XL chrM:6000-8000"}
+            "intervals_to_process":"-L chrM:1-12000", "intervals_to_exclude":"-XL chrM:12000-16000", "output_mode":"EMIT_ALL_SITES"}
 
 
 class TestMyApp(unittest.TestCase):
