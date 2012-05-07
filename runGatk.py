@@ -56,14 +56,15 @@ def main():
     
     for x in trivialOutput['additionalColumns']:
         mappings_schema.append({"name": x.strip(), "type": "string"})
-    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi",'gri')])
+    #simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri'), dxpy.DXGTable.substring_index("type", "typeIndex")])
+    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
     simpleVar.set_details({'header':trivialOutput['header']})
     
     reduceInput = {}
 
-    commandList = splitGenomeLength(job['input']['reference_contig_set'], job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+    commandList = splitGenomeLength(job['input']['reference_contig_set'], job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
         
     for i in range(len(commandList)):
         print commandList[i]
@@ -232,14 +233,15 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                 if altOptions == [ref, '.']:
                     if type == "No-call":
                         if compressNoCall == False:
-                            simpleVar.add_rows([[chr, lo, hi, type, "", "", 0, 0, 0]])
-                            additionalData.append(tabSplit[7:])
+                            entry = [chr, lo, hi, type, "", "", 0, 0, 0]
+                            entry.extend(tabSplit[7:])
+                            simpleVar.add_rows([entry])
                     else:
                         type = "Ref"
                         if compressReference == False:
-                            simpleVar.add_rows([[chr, lo, hi, type, "", "", 0, 0, 0]])
-                            additionalData.append(tabSplit[7:])
-                            #print [chr, lo, hi, type, "", "", 0, 0, 0]
+                            entry = [chr, lo, hi, type, "", "", 0, 0, 0]
+                            entry.extend(tabSplit[7:])
+                            simpleVar.add_rows([entry])
                 else:
                     #Find all of the genotypes 
                     genotypePossibilities = {}
@@ -301,24 +303,21 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                     if len(ref) == 0:
                         ref = "-"
                     entry = [chr, lo-overlap, lo+len(ref[overlap:]), type, ref[overlap:], alt, qual, coverage, int(genotypeQuality)]
-                    for x in tabSplit[7:]:
-                        entry.append(x)
+                    entry.extend(tabSplit[7:])
                     simpleVar.add_rows([entry])
                 if compressReference:
                     if priorType == "Ref" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
-                        for x in additionalColumns:
-                            entry.append(x)
+                        entry.extend(tabSplit[7:])
                         simpleVar.add_rows([entry])                        
                 if compressNoCall:
                     if priorType == "No-call" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
-                        for x in additionalColumns:
-                            entry.append(x)
+                        entry.extend(tabSplit[7:])
                         simpleVar.add_rows([entry])
                 if type != priorType:
                     priorType = type
-                    priorPosition = lo 
+                    priorPosition = lo  
         except StopIteration:
             break
 
@@ -352,7 +351,7 @@ def generateEmptyList(columns):
         result.append('')
     return result
     
-def splitGenomeLength(contig_set, chunkSize, splits):
+def splitGenomeLength(contig_set, includeInterval, excludeInterval, chunkSize, splits):
     print contig_set
     print dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
     details = dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
@@ -368,21 +367,53 @@ def splitGenomeLength(contig_set, chunkSize, splits):
     position = 0
     chromosome = 0
     currentChunk = 0
+    
     for i in range(splits):
-        commandList.append('')
+        commandList.append(" "+excludeInterval)
+        
+    includeDictionary = {}
+    includeMatch = re.findall("(\w+):(\d+)-(\d+)", includeInterval)
+    for x in includeMatch:
+        if includeDictionary.get(x[0]) == None:
+            includeDictionary[x[0]] = []
+            includeDictionary[x[0]].append([int(x[1]), int(x[2])])
     
     while chromosome < len(names):
         if position + chunkSize >= sizes[chromosome]:
             print chromosome
-            commandList[currentChunk] += " -L %s:%d-%d" % (names[chromosome], position+1, sizes[chromosome])
+            commandList[currentChunk] += checkIntervalRange(includeDictionary, names[chromosome], position+1, sizes[chromosome]+1)
             chromosome += 1
             position = 0
         else:
-            commandList[currentChunk] += " -L %s:%d-%d" % (names[chromosome], position+1, position+chunkSize+1)
+            commandList[currentChunk] += checkIntervalRange(includeDictionary, names[chromosome], position+1, position+chunkSize+1)
             position += chunkSize
         currentChunk = (currentChunk+1)%splits
-    
+ 
     return commandList
+    
+def checkIntervalRange(includeList, chromosome, lo, hi):
+    included = False
+    command = ''
+    if len(includeList) == 0:
+        return " -L %s:%d-%d" % (chromosome, lo, hi)
+    if includeList.get(chromosome) != None:
+        for x in includeList[chromosome]:
+            print "List"
+            print x
+            min = lo
+            max = hi
+            if (lo >= x[0] and lo <= x[1]) or (hi <= x[1] and hi >= x[0]):
+                if lo >= x[0] and lo <= x[1]:
+                    min = lo
+                elif lo <= x[0]:
+                    min = x[0]
+                if hi <= x[1] and hi >= x[0]:
+                    max = hi
+                elif hi >= x[1]:
+                    max = x[1]
+                command += " -L %s:%d-%d" % (chromosome, min, max)
+    return command
+
     
     
     
