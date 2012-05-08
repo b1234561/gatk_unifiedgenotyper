@@ -53,9 +53,9 @@ def main():
     
     ##Run the trivial case to find the columns
     trivialOutput = runTrivialTest(job['input']['reference_contig_set'], buildCommand(job))
-    
-    for x in trivialOutput['additionalColumns']:
-        mappings_schema.append({"name": x.strip(), "type": "string"})
+    if job['input']['store_full_vcf']:
+        for x in trivialOutput['additionalColumns']:
+            mappings_schema.append({"name": x.strip(), "type": "string"})
     #simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri'), dxpy.DXGTable.substring_index("type", "typeIndex")])
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
@@ -235,13 +235,15 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                     if type == "No-call":
                         if compressNoCall == False:
                             entry = [chr, lo, hi, type, "", "", 0, 0, 0]
-                            entry.extend(tabSplit[7:])
+                            if storeFullVcf:
+                                entry.extend(tabSplit[7:])
                             simpleVar.add_rows([entry])
                     else:
                         type = "Ref"
                         if compressReference == False:
                             entry = [chr, lo, hi, type, "", "", 0, 0, 0]
-                            entry.extend(tabSplit[7:])
+                            if storeFullVcf:
+                                entry.extend(tabSplit[7:])
                             simpleVar.add_rows([entry])
                 else:
                     #Find all of the genotypes 
@@ -304,17 +306,20 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                     if len(ref) == 0:
                         ref = "-"
                     entry = [chr, lo-overlap, lo+len(ref), type, ref, alt, qual, coverage, int(genotypeQuality)]
-                    entry.extend(tabSplit[7:])
+                    if storeFullVcf:
+                        entry.extend(tabSplit[7:])
                     simpleVar.add_rows([entry])
                 if compressReference:
                     if priorType == "Ref" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
-                        entry.extend(tabSplit[7:])
+                        if storeFullVcf:
+                            entry.extend(tabSplit[7:])
                         simpleVar.add_rows([entry])                        
                 if compressNoCall:
                     if priorType == "No-call" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
-                        entry.extend(tabSplit[7:])
+                        if storeFullVcf:
+                            entry.extend(tabSplit[7:])
                         simpleVar.add_rows([entry])
                 if type != priorType:
                     priorType = type
