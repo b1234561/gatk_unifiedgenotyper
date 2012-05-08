@@ -303,7 +303,7 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                     ref = ref[overlap:]
                     if len(ref) == 0:
                         ref = "-"
-                    entry = [chr, lo-overlap, lo+len(ref[overlap:]), type, ref[overlap:], alt, qual, coverage, int(genotypeQuality)]
+                    entry = [chr, lo-overlap, lo+len(ref), type, ref, alt, qual, coverage, int(genotypeQuality)]
                     entry.extend(tabSplit[7:])
                     simpleVar.add_rows([entry])
                 if compressReference:
