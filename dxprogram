@@ -3,7 +3,7 @@
   "dxapi": "1.03rc",
   "version": "0.1",
   "inputs": [
-    {"name": "sam", "class": "file"},
+    {"name": "mappings", "class": "gtable"},
     {"name": "reference_contig_set", "class": "record", "type": "ContigSet"},
     
     {"name": "compress_reference", "class": "boolean", "default": false},

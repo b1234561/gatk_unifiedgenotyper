@@ -4,6 +4,8 @@ import os, sys, unittest, json, subprocess
 import dxpy, dxpy.program_builder
 from dxpy.exceptions import *
 
+import subprocess
+
 src_dir = os.path.join(os.path.dirname(__file__), "..")
 test_resources_dir = os.path.join(src_dir, "test", "resources")
 
@@ -15,18 +17,17 @@ def makeInputs():
         raise Exception("fasta_contigset_importer or LetterSpaceFileObjectToReadsTable not found, please upload them")
 
     sam = dxpy.upload_local_file(os.path.join(test_resources_dir, "reads.sam"), wait_on_close=True)
-    reference_sequence = dxpy.upload_local_file(os.path.join(test_resources_dir, "ref.fa"), wait_on_close=True)
-    
-    genome_archive = dxpy.upload_local_file(os.path.join(test_resources_dir, "ref.fa"), wait_on_close=True)
-    contigset_importer_input = {"name": "hg19_chrM", "sequence_file": dxpy.dxlink(genome_archive)}
+        
+    genome_archive = dxpy.upload_local_file(os.path.join(test_resources_dir, "hg19_chr22.fa.xz"), wait_on_close=True)
+    contigset_importer_input = {"name": "hg19_chr22", "sequence_file": dxpy.dxlink(genome_archive)}
     print "Running fasta_contigset_importer with", contigset_importer_input
     job = contigset_importer.run(contigset_importer_input)
     job.wait_on_done()
     contig_set = job.describe()["output"]["contig_set"]
     print contig_set
 
-    return {"reference_contig_set": contig_set, 'sam':dxpy.dxlink(sam), 'minimum_chunk_size':1000, 'maximum_chunks':5,
-            "intervals_to_process":"-L chrM:1-12000", "intervals_to_exclude":"-XL chrM:12000-16000", "output_mode":"EMIT_ALL_SITES"}
+    return {"reference_contig_set": contig_set, 'mappings':{"$dnanexus_link": "gtable-9ybB2Y80000FKXKJB8yQ0009"}, 'minimum_chunk_size':100000, 'maximum_chunks':5,
+             "output_mode":"EMIT_VARIANTS_ONLY"}
 
 
 class TestMyApp(unittest.TestCase):
