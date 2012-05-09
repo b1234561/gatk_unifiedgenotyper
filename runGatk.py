@@ -23,9 +23,12 @@ def main():
     referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
     referenceIndex = dxpy.dxlink(dxpy.upload_local_file("ref.fa.fai"))
     
+    print job['input']['mappings']
+    print job['input']['mappings']["$dnanexus_link"]
     
-    print "Downloading"
-    inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
+    print "Converting Table to SAM"
+    subprocess.check_call("dx_mappingsTableToSamBwa --table_id %s --output input.sam" % (job['input']['mappings']['$dnanexus_link']), shell=True)
+    #inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
     print "Converting to BAM"
     subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
     print "Sorting"
@@ -50,17 +53,16 @@ def main():
             {"name": "coverage", "type": "int32"},
             {"name": "genotypeQuality", "type": "int32"},    
         ]
-    
-    ##Run the trivial case to find the columns
-    trivialOutput = runTrivialTest(job['input']['reference_contig_set'], buildCommand(job))
     if job['input']['store_full_vcf']:
-        for x in trivialOutput['additionalColumns']:
-            mappings_schema.append({"name": x.strip(), "type": "string"})
-    #simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri'), dxpy.DXGTable.substring_index("type", "typeIndex")])
+        mappings_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
+    
+    #Run the trivial case to find the header and to fail early if input looks bad
+    header = runTrivialTest(job['input']['reference_contig_set'], buildCommand(job))
+    
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'header':trivialOutput['header']})
+    simpleVar.set_details({'header':header, 'originalContigSet':job['input']['reference_contig_set']['$dnanexus_link']})
     
     reduceInput = {}
 
@@ -170,7 +172,7 @@ def extractHeader(vcfFile):
                 #extract additional column header data
                 if(input[1] != "#"):
                     tabSplit = input.split("\t")
-                    return {'header': header, 'additionalColumns': tabSplit[7:]}
+                    return header
         except StopIteration:
             break
     
@@ -202,7 +204,7 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
             count += 1
             
             if input[0] != "#":
-                tabSplit = input.split("\t")
+                tabSplit = input.strip().split("\t")
                 chr = tabSplit[0]
                 lo = int(tabSplit[1])
                 hi = lo + len(tabSplit[3])
@@ -222,7 +224,6 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
 
                 formatColumn = tabSplit[7]
                 infoColumn = tabSplit[8]
-                
                 genotypeQuality = 0
                 
                 coverage = re.findall("DP=(\d+);", formatColumn)
@@ -235,16 +236,20 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                     if type == "No-call":
                         if compressNoCall == False:
                             entry = [chr, lo, hi, type, "", "", 0, 0, 0]
-                            if storeFullVcf:
-                                entry.extend(tabSplit[7:])
-                            simpleVar.add_rows([entry])
+                            entry.append(tabSplit[4])
+                            vcfSpecificData = ''
+                            for x in tabSplit[7:]:
+                                vcfSpecificData += x+"\t"
+                            entry.append(tabSplit[7:].strip())
                     else:
                         type = "Ref"
                         if compressReference == False:
                             entry = [chr, lo, hi, type, "", "", 0, 0, 0]
-                            if storeFullVcf:
-                                entry.extend(tabSplit[7:])
-                            simpleVar.add_rows([entry])
+                            entry.append(tabSplit[4])
+                            vcfSpecificData = ''
+                            for x in tabSplit[7:]:
+                                vcfSpecificData += x+"\t"
+                            entry.append(vcfSpecificData.strip())
                 else:
                     #Find all of the genotypes 
                     genotypePossibilities = {}
@@ -307,19 +312,23 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                         ref = "-"
                     entry = [chr, lo-overlap, lo+len(ref), type, ref, alt, qual, coverage, int(genotypeQuality)]
                     if storeFullVcf:
-                        entry.extend(tabSplit[7:])
-                    simpleVar.add_rows([entry])
+                        entry.append(tabSplit[4])
+                        vcfSpecificData = ''
+                        for x in tabSplit[7:]:
+                            vcfSpecificData += x+"\t"
+                        entry.append(vcfSpecificData.strip())
+                        simpleVar.add_rows([entry])
                 if compressReference:
                     if priorType == "Ref" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
                         if storeFullVcf:
-                            entry.extend(tabSplit[7:])
+                            entry.extend([".", ""])
                         simpleVar.add_rows([entry])                        
                 if compressNoCall:
                     if priorType == "No-call" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
                         if storeFullVcf:
-                            entry.extend(tabSplit[7:])
+                            entry.extend([".",""])
                         simpleVar.add_rows([entry])
                 if type != priorType:
                     priorType = type
@@ -387,7 +396,7 @@ def splitGenomeLength(contig_set, includeInterval, excludeInterval, chunkSize, s
     while chromosome < len(names):
         if position + chunkSize >= sizes[chromosome]:
             print chromosome
-            commandList[currentChunk] += checkIntervalRange(includeDictionary, names[chromosome], position+1, sizes[chromosome]+1)
+            commandList[currentChunk] += checkIntervalRange(includeDictionary, names[chromosome], position+1, sizes[chromosome])
             chromosome += 1
             position = 0
         else:
