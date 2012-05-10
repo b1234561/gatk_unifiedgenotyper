@@ -12,10 +12,16 @@ def main():
     
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
 
-    subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['reference_contig_set']['$dnanexus_link']), shell=True)
-    reference_sequence = dxpy.dxlink(dxpy.upload_local_file("ref.fa"))
+    mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
+    try:
+        contigSetId = mappingsTable.get_details()['originalContigSet']['$dnanexus_link']
+        originalContigSet = mappingsTable.get_details()['originalContigSet']
+    except:
+        raise Exception("The original reference genome must be attached as a detail")
     
-    #referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
+    subprocess.check_call("contigset2fasta %s ref.fa" % (contigSetId), shell=True)
+    reference_sequence = dxpy.dxlink(dxpy.upload_local_file("ref.fa"))
+
     print "Indexing Dictionary"
     subprocess.check_call("java net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
     subprocess.check_call("samtools faidx ref.fa", shell=True)
@@ -57,16 +63,16 @@ def main():
         mappings_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
     
     #Run the trivial case to find the header and to fail early if input looks bad
-    header = runTrivialTest(job['input']['reference_contig_set'], buildCommand(job))
+    header = runTrivialTest(originalContigSet, buildCommand(job))
     
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'header':header, 'originalContigSet':job['input']['reference_contig_set']['$dnanexus_link']})
+    simpleVar.set_details({'header':header, 'originalContigSet':originalContigSet})
     
     reduceInput = {}
 
-    commandList = splitGenomeLength(job['input']['reference_contig_set'], job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+    commandList = splitGenomeLength(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
         
     for i in range(len(commandList)):
         print commandList[i]
@@ -83,7 +89,6 @@ def main():
                 'compress_reference': job['input']['compress_reference'],
                 'compress_no_call' : job['input']['compress_no_call'],
                 'store_full_vcf' : job['input']['store_full_vcf']
-                
             }
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
@@ -367,8 +372,6 @@ def generateEmptyList(columns):
     return result
     
 def splitGenomeLength(contig_set, includeInterval, excludeInterval, chunkSize, splits):
-    print contig_set
-    print dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
     details = dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
