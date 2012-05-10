@@ -322,7 +322,7 @@ def parseVcf(vcfFile, simpleVar, compressNoCall, compressReference, storeFullVcf
                         for x in tabSplit[7:]:
                             vcfSpecificData += x+"\t"
                         entry.append(vcfSpecificData.strip())
-                        simpleVar.add_rows([entry])
+                    simpleVar.add_rows([entry])
                 if compressReference:
                     if priorType == "Ref" and type != priorType:
                         entry = [chr, priorPosition, hi, type, "", "", 0, 0, 0]
