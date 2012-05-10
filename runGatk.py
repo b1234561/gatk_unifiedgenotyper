@@ -33,7 +33,7 @@ def main():
     print job['input']['mappings']["$dnanexus_link"]
     
     print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsTableToSamBwa --table_id %s --output input.sam" % (job['input']['mappings']['$dnanexus_link']), shell=True)
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam" % (job['input']['mappings']['$dnanexus_link']), shell=True)
     #inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
     print "Converting to BAM"
     subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
