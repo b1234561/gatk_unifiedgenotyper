@@ -4,7 +4,6 @@
   "version": "0.1",
   "inputs": [
     {"name": "mappings", "class": "gtable"},
-    {"name": "reference_contig_set", "class": "record", "type": "ContigSet"},
     
     {"name": "compress_reference", "class": "boolean", "default": false},
     {"name": "compress_no_call", "class": "boolean", "default": false},

@@ -26,8 +26,7 @@ def makeInputs():
     contig_set = job.describe()["output"]["contig_set"]
     print contig_set
 
-    return {"reference_contig_set": contig_set, 'mappings':{"$dnanexus_link": "gtable-9ybB2Y80000FKXKJB8yQ0009"}, 'minimum_chunk_size':100000, 'maximum_chunks':5,
-             "output_mode":"EMIT_VARIANTS_ONLY"}
+    return { 'mappings':{"$dnanexus_link": "gtable-9ybB2Y80000FKXKJB8yQ0009"}, "output_mode":"EMIT_VARIANTS_ONLY"}
 
 
 class TestMyApp(unittest.TestCase):
