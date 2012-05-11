@@ -13,6 +13,7 @@ def main():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
 
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
+    mappingsTableId = mappingsTable.get_id()
     try:
         contigSetId = mappingsTable.get_details()['originalContigSet']['$dnanexus_link']
         originalContigSet = mappingsTable.get_details()['originalContigSet']
@@ -28,26 +29,7 @@ def main():
     
     referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
     referenceIndex = dxpy.dxlink(dxpy.upload_local_file("ref.fa.fai"))
-    
-    print job['input']['mappings']
-    print job['input']['mappings']["$dnanexus_link"]
-    
-    print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam" % (job['input']['mappings']['$dnanexus_link']), shell=True)
-    #inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
-    print "Converting to BAM"
-    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
-    print "Sorting"
-    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
-    print "Adding Read Groups"
-    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
-    print "Indexing"
-    subprocess.check_call("samtools index input.rg.bam", shell=True)
-    
-    bam = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam"))
-    bamIndex = dxpy.dxlink(dxpy.upload_local_file("input.rg.bam.bai"))
-    
-   
+
     mappings_schema = [
             {"name": "chr", "type": "string"}, 
             {"name": "lo", "type": "int32"},
@@ -62,33 +44,41 @@ def main():
     if job['input']['store_full_vcf']:
         mappings_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
     
-    #Run the trivial case to find the header and to fail early if input looks bad
-    header = runTrivialTest(originalContigSet, buildCommand(job))
-    
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'header':header, 'originalContigSet':originalContigSet})
+    
     
     reduceInput = {}
-
     commandList = splitGenomeLength(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
         
     for i in range(len(commandList)):
         print commandList[i]
-        if len(commandList[i]) > 0:         
+        if len(commandList[i]) > 0:
+            print mappingsTable
+            print reference_sequence
+            print referenceDictionary
+            print referenceIndex
+            print contigSetId
+            print commandList[i]
+            print tableId
+            print buildCommand(job)
+            print job['input']['compress_reference']
+            print job['input']['compress_no_call']
+            print job['input']['store_full_vcf']
             mapInput = {
-                'bam': bam,
-                'bam_index': bamIndex,
+                'mappings_table_id':mappingsTableId,
                 'reference_sequence': reference_sequence,
                 'reference_dict': referenceDictionary,
                 'reference_index': referenceIndex,
+                'original_contig_set': contigSetId,
                 'interval': commandList[i],
                 'tableId': tableId,
                 'command': buildCommand(job),
                 'compress_reference': job['input']['compress_reference'],
                 'compress_no_call' : job['input']['compress_no_call'],
-                'store_full_vcf' : job['input']['store_full_vcf']
+                'store_full_vcf' : job['input']['store_full_vcf'],
+                'part_number' : i
             }
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
@@ -101,15 +91,27 @@ def main():
     
     
 def mapGatk():
+    
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
+    
+    print "Converting Table to SAM"
+    #TODO: Add range arguments
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 %s" % (job['input']['mappings_table_id'], job['input']['interval']), shell=True)
+    #inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
+    print "Converting to BAM"
+    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+    print "Sorting"
+    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
+    print "Adding Read Groups"
+    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
+    print "Indexing"
+    subprocess.check_call("samtools index input.rg.bam", shell=True)
+    
     print "In GATK"
-    os.environ['CLASSPATH'] = '/opt/jar/GenomeAnalysisTK.jar'
     
     referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
     dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
     indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
-    
-    dxpy.download_dxfile(job['input']['bam'], "input.rg.bam")
-    dxpy.download_dxfile(job['input']['bam_index'], "input.rg.bam.bai")
     
     simpleVar = dxpy.open_dxgtable(job['input']['tableId'])
     
@@ -118,6 +120,10 @@ def mapGatk():
     
     subprocess.call(command, shell=True)
     parseVcf(open("output.vcf", 'r'), simpleVar, job['input']['compress_reference'], job['input']['compress_no_call'], job['input']['store_full_vcf'])
+    
+    if job['input']['part_number'] == 0:
+        header = extractHeader(open("output.vcf", 'r'))
+        simpleVar.set_details({'header':header, 'originalContigSet':dxpy.dxlink(job['input']['original_contig_set'])})
 
 
 def buildCommand(job):
@@ -376,11 +382,7 @@ def splitGenomeLength(contig_set, includeInterval, excludeInterval, chunkSize, s
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
     offsets = details['contigs']['offsets']
-    
-    print names
-    print sizes
-    print offsets
-    
+
     commandList = []
     position = 0
     chromosome = 0
