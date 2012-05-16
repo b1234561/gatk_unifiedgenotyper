@@ -15,8 +15,8 @@ def main():
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
     try:
-        contigSetId = mappingsTable.get_details()['originalContigSet']['$dnanexus_link']
-        originalContigSet = mappingsTable.get_details()['originalContigSet']
+        contigSetId = mappingsTable.get_details()['original_contigset']['$dnanexus_link']
+        originalContigSet = mappingsTable.get_details()['original_contigset']
     except:
         raise Exception("The original reference genome must be attached as a detail")
     
@@ -24,7 +24,7 @@ def main():
     reference_sequence = dxpy.dxlink(dxpy.upload_local_file("ref.fa"))
 
     print "Indexing Dictionary"
-    subprocess.check_call("java net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
+    subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     
     referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
@@ -55,17 +55,6 @@ def main():
     for i in range(len(commandList)):
         print commandList[i]
         if len(commandList[i]) > 0:
-            print mappingsTable
-            print reference_sequence
-            print referenceDictionary
-            print referenceIndex
-            print contigSetId
-            print commandList[i]
-            print tableId
-            print buildCommand(job)
-            print job['input']['compress_reference']
-            print job['input']['compress_no_call']
-            print job['input']['store_full_vcf']
             mapInput = {
                 'mappings_table_id':mappingsTableId,
                 'reference_sequence': reference_sequence,
@@ -95,15 +84,13 @@ def mapGatk():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
     
     print "Converting Table to SAM"
-    #TODO: Add range arguments
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 %s" % (job['input']['mappings_table_id'], job['input']['interval']), shell=True)
-    #inputFileName = dxpy.download_dxfile(job['input']['sam'], "input.sam")
     print "Converting to BAM"
     subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
     print "Sorting"
     subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
     print "Adding Read Groups"
-    subprocess.call("java net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
+    subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
     print "Indexing"
     subprocess.check_call("samtools index input.rg.bam", shell=True)
     
@@ -123,12 +110,12 @@ def mapGatk():
     
     if job['input']['part_number'] == 0:
         header = extractHeader(open("output.vcf", 'r'))
-        simpleVar.set_details({'header':header, 'originalContigSet':dxpy.dxlink(job['input']['original_contig_set'])})
+        simpleVar.set_details({'header':header, 'original_contigset':dxpy.dxlink(job['input']['original_contig_set'])})
 
 
 def buildCommand(job):
     
-    command = "java org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf "
+    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf "
     command += " -out_mode " + (job['input']['output_mode'])
     command += " -stand_call_conf " +str(job['input']['call_confidence'])
     command += " -stand_emit_conf " +str(job['input']['emit_confidence'])

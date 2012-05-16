@@ -87,7 +87,7 @@ class TestMyApp(unittest.TestCase):
                 bwa = dxpy.DXProgram(dxpy.find_data_objects(classname="program", properties={"name": "BWA"}).next()['id'])
             except:
                 print "BWA not found, please upload it"
-            job = self.bwa.run(input)
+            job = bwa.run(input)
             job.wait_on_done()
             print "Bwa output:"
             print json.dumps(job.describe()["output"])
