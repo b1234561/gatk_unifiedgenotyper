@@ -47,6 +47,7 @@ def main():
     simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
+    simpleVar.set_details({'original_contigset':originalContigSet})
     
     
     reduceInput = {}
@@ -111,8 +112,7 @@ def mapGatk():
         command += " --compress_no_call"
     if job['input']['store_full_vcf']:
         command += " --store_full_vcf"
-    if job['input']['part_number'] == 0:
-        command += " --extract_header"
+    command += " --extract_header"
     print command    
     subprocess.call(command ,shell=True)
 
