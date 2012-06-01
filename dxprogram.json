@@ -1,6 +1,7 @@
 {
-  "name": "GATK UnifiedGenotyper",
-  "subtitle": "UnifiedGenotyper from Genome Analysis Toolkit",
+  "name": "gatk",
+  "title": "GATK UnifiedGenotyper",
+  "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
   "dxapi": "1.03rc",
   "version": "0.1",
   "inputs": [
