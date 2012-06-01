@@ -73,6 +73,7 @@ def main():
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
             reduceInput["mapJob" + str(i) + "TableId"] = {'job': mapJobId, 'field': 'id'}
+            dxpy.DXJob(mapJobId).wait_on_done()
 
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
@@ -87,9 +88,9 @@ def mapGatk():
     print "Converting Table to SAM"
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 %s" % (job['input']['mappings_table_id'], job['input']['interval']), shell=True)
     print "Converting to BAM"
-    subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
-    print "Sorting"
-    subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
+    subprocess.check_call("samtools view -bS input.sam > input.sorted.bam", shell=True)
+    #print "Sorting"
+    #subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
     print "Adding Read Groups"
     subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
     print "Indexing"
