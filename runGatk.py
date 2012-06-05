@@ -10,7 +10,7 @@ import operator
 
 def main():
     
-    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
@@ -20,17 +20,9 @@ def main():
     except:
         raise Exception("The original reference genome must be attached as a detail")
     
-    subprocess.check_call("contigset2fasta %s ref.fa" % (contigSetId), shell=True)
-    reference_sequence = dxpy.dxlink(dxpy.upload_local_file("ref.fa"))
-
-    print "Indexing Dictionary"
-    subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary R=ref.fa O=ref.dict", shell=True)
-    subprocess.check_call("samtools faidx ref.fa", shell=True)
     
-    referenceDictionary = dxpy.dxlink(dxpy.upload_local_file("ref.dict"))
-    referenceIndex = dxpy.dxlink(dxpy.upload_local_file("ref.fa.fai"))
 
-    mappings_schema = [
+    variants_schema = [
             {"name": "chr", "type": "string"}, 
             {"name": "lo", "type": "int32"},
             {"name": "hi", "type": "int32"},
@@ -39,12 +31,12 @@ def main():
             {"name": "alt", "type": "string"},
             {"name": "qual", "type": "int32"},
             {"name": "coverage", "type": "int32"},
-            {"name": "genotypeQuality", "type": "int32"},    
+            {"name": "genotype_quality", "type": "int32"},    
         ]
     if job['input']['store_full_vcf']:
-        mappings_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
+        variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
     
-    simpleVar = dxpy.new_dxgtable(mappings_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
+    simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
     simpleVar.set_details({'original_contigset':originalContigSet})
@@ -58,9 +50,6 @@ def main():
         if len(commandList[i]) > 0:
             mapInput = {
                 'mappings_table_id':mappingsTableId,
-                'reference_sequence': reference_sequence,
-                'reference_dict': referenceDictionary,
-                'reference_index': referenceIndex,
                 'original_contig_set': contigSetId,
                 'interval': commandList[i],
                 'tableId': tableId,
@@ -83,25 +72,24 @@ def main():
     
 def mapGatk():
     
-    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:/opt/jar/CreateSequenceDictionary.jar'
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
     
+    print "Converting Contigset to Fasta"
+    subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
     print "Converting Table to SAM"
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 %s" % (job['input']['mappings_table_id'], job['input']['interval']), shell=True)
     print "Converting to BAM"
     subprocess.check_call("samtools view -bS input.sam > input.sorted.bam", shell=True)
-    #print "Sorting"
-    #subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
     print "Adding Read Groups"
     subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
     print "Indexing"
     subprocess.check_call("samtools index input.rg.bam", shell=True)
     
-    print "In GATK"
     
-    referenceFileName = dxpy.download_dxfile(job['input']['reference_sequence'], "ref.fa")
-    dictFileName = dxpy.download_dxfile(job['input']['reference_dict'], "ref.dict")
-    indexFileName = dxpy.download_dxfile(job['input']['reference_index'], "ref.fa.fai")
-    
+
+    writeGenomeDict(job['input']['original_contig_set'], "ref.dict")
+    writeReferenceIndex(job['input']['original_contig_set'], "ref.fa.fai")
+        
     command = job['input']['command'] + job['input']['interval']
     print command
     subprocess.call(command, shell=True)
@@ -114,10 +102,9 @@ def mapGatk():
     if job['input']['store_full_vcf']:
         command += " --store_full_vcf"
     command += " --extract_header"
-    print command    
+    print command
+    print "In GATK"
     subprocess.call(command ,shell=True)
-
-   
 
 def buildCommand(job):
     
@@ -159,7 +146,40 @@ def runTrivialTest(contig_set, command):
     command += ' -L ' + chromosome+':1-1'
     subprocess.call(command, shell=True)
     return extractHeader(open("output.vcf", 'r'))
+
+
+def writeGenomeDict(contig_set, dictFileName):
+    print contig_set
+    details = dxpy.DXRecord(contig_set).get_details()
+    sizes = details['contigs']['sizes']
+    names = details['contigs']['names']
+
+    dictFile = open(dictFileName, 'w')
+    dictFile.write("@HD\tVN:1.0\tSN:unsorted\n")
+    for i in range(len(sizes)):
+        line = "@SQ\tSN:%s\tLN:%s\n" % (names[i], str(sizes[i]))
+        dictFile.write(line)
+    return
+
+def writeReferenceIndex(contig_set, indexFileName):
+    details = dxpy.DXRecord(contig_set).get_details()
+    sizes = details['contigs']['sizes']
+    names = details['contigs']['names']
     
+    dictFile = open(indexFileName, 'w')
+    priorOffset = 0
+    priorLength = 0
+    first = True
+    for i in range(len(names)):
+        offset = priorOffset + len(names[i])+ 2 + priorLength + math.ceil(float(priorLength)/50.0)
+        if first:
+            first = False
+        else:
+            offset += 1
+        dictFile.write(names[i]+"\t"+str(sizes[i]) + "\t" + str(int(offset)) + "\t50\t51\n")
+        priorOffset = offset
+        priorLength = sizes[i]
+    return
 
 def extractHeader(vcfFile):
     header = ''
@@ -187,7 +207,7 @@ def reduceGatk():
     job['output']['simplevar'] = dxpy.dxlink(t.get_id())
 
 def splitGenomeLength(contig_set, includeInterval, excludeInterval, chunkSize, splits):
-    details = dxpy.DXRecord(contig_set['$dnanexus_link']).get_details()
+    details = dxpy.DXRecord(contig_set).get_details()
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
     offsets = details['contigs']['offsets']
