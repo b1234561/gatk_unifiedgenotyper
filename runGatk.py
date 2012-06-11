@@ -40,6 +40,7 @@ def main():
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
     simpleVar.set_details({'original_contigset':originalContigSet})
+    simpleVar.add_types(["SimpleVar", "gri"])
     
     
     reduceInput = {}
@@ -67,6 +68,7 @@ def main():
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
     #print "SimpleVar table" + json.dumps({'table_id':simpleVar.get_id()})
+    
     job['output'] = {'simplevar': {'job': reduceJobId, 'field': 'simplevar'}}
     
     
