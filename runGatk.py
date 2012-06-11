@@ -85,10 +85,10 @@ def mapGatk():
     print "Indexing"
     subprocess.check_call("samtools index input.rg.bam", shell=True)
     
-    
+    subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
 
-    writeGenomeDict(job['input']['original_contig_set'], "ref.dict")
-    writeReferenceIndex(job['input']['original_contig_set'], "ref.fa.fai")
+    #writeGenomeDict(job['input']['original_contig_set'], "ref.dict")
+    #writeReferenceIndex(job['input']['original_contig_set'], "ref.fa.fai")
         
     command = job['input']['command'] + job['input']['interval']
     print command
