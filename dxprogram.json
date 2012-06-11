@@ -21,7 +21,7 @@
     {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
     {"name": "heterozygosity", "class": "float", "default": 0.001},
     {"name": "indel_heterozygosity", "class": "float", "default": 0.000125},
-    {"name": "genotype_likelihood_model", "class": "string", "default":"SNP"},
+    {"name": "genotype_likelihood_model", "class": "string", "default":"BOTH"},
     {"name": "minimum_base_quality", "class": "int", "default":17},
     {"name": "max_alternate_alleles", "class": "int", "default":3},
     {"name": "max_deletion_fraction", "class": "float", "default":0.05},
@@ -38,7 +38,7 @@
 
   ],
   "outputs": [
-    {"name": "simplevar", "class": "gtable"}
+    {"name": "simplevar", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
   ],
   "run": 
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}
