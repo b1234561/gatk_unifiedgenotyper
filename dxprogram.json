@@ -8,6 +8,7 @@
   "inputs": [
     {"name": "mappings", "class": "gtable", "type":"LetterMappings"},
     {"name": "reference", "class": "record", "type": "ContigSet"},
+    {"name": "output name", "class":"string", "optional":true},
     
     {"name": "compress_reference", "class": "boolean", "default": false},
     {"name": "compress_no_call", "class": "boolean", "default": false},
