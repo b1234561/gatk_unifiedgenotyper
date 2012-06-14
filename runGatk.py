@@ -74,7 +74,6 @@ def main():
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
             reduceInput["mapJob" + str(i) + "TableId"] = {'job': mapJobId, 'field': 'id'}
-            dxpy.DXJob(mapJobId).wait_on_done()
 
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
@@ -88,10 +87,14 @@ def mapGatk():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
     
     regionFile = open("regions.txt", 'w')
-    print job['input']['interval']
     regionFile.write(job['input']['interval'])
-    
     regionFile.close()
+    
+    gatkIntervals = open("regions.interval_list", 'w')
+    for x in re.findall("(\w+):(\d+)-(\d+)", job['input']['interval']):
+        gatkIntervals.write(x[0]+":"+x[1]+"-"+x[2]+"\n")
+    
+    
     
     print "Converting Contigset to Fasta"
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
@@ -137,6 +140,7 @@ def buildCommand(job):
     command += " -deletions " + str(job['input']['max_deletion_fraction'])
     command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    command += " -L regions.interval_list"
     
     if job['input']['downsample_to_coverage'] != 50000:
         command += " -dcov " + str(job['input']['downsample_to_coverage'])
