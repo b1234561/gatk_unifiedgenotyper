@@ -87,10 +87,16 @@ def mapGatk():
     
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
     
+    regionFile = open("regions.txt", 'w')
+    print job['input']['interval']
+    regionFile.write(job['input']['interval'])
+    
+    regionFile.close()
+    
     print "Converting Contigset to Fasta"
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
     print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 %s" % (job['input']['mappings_table_id'], job['input']['interval']), shell=True)
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
     print "Converting to BAM"
     subprocess.check_call("samtools view -bS input.sam > input.sorted.bam", shell=True)
     print "Adding Read Groups"
@@ -100,10 +106,7 @@ def mapGatk():
     
     subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
 
-    #writeGenomeDict(job['input']['original_contig_set'], "ref.dict")
-    #writeReferenceIndex(job['input']['original_contig_set'], "ref.fa.fai")
-        
-    command = job['input']['command'] + job['input']['interval']
+    command = job['input']['command']
     #print command
     subprocess.call(command, shell=True)
     
@@ -159,40 +162,6 @@ def runTrivialTest(contig_set, command):
     command += ' -L ' + chromosome+':1-1'
     subprocess.call(command, shell=True)
     return extractHeader(open("output.vcf", 'r'))
-
-
-def writeGenomeDict(contig_set, dictFileName):
-    #print contig_set
-    details = dxpy.DXRecord(contig_set).get_details()
-    sizes = details['contigs']['sizes']
-    names = details['contigs']['names']
-
-    dictFile = open(dictFileName, 'w')
-    dictFile.write("@HD\tVN:1.0\tSN:unsorted\n")
-    for i in range(len(sizes)):
-        line = "@SQ\tSN:%s\tLN:%s\n" % (names[i], str(sizes[i]))
-        dictFile.write(line)
-    return
-
-def writeReferenceIndex(contig_set, indexFileName):
-    details = dxpy.DXRecord(contig_set).get_details()
-    sizes = details['contigs']['sizes']
-    names = details['contigs']['names']
-    
-    dictFile = open(indexFileName, 'w')
-    priorOffset = 0
-    priorLength = 0
-    first = True
-    for i in range(len(names)):
-        offset = priorOffset + len(names[i])+ 2 + priorLength + math.ceil(float(priorLength)/50.0)
-        if first:
-            first = False
-        else:
-            offset += 1
-        dictFile.write(names[i]+"\t"+str(sizes[i]) + "\t" + str(int(offset)) + "\t50\t51\n")
-        priorOffset = offset
-        priorLength = sizes[i]
-    return
 
 def extractHeader(vcfFile):
     header = ''
@@ -257,6 +226,7 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
     included = False
     command = ''
     if len(includeList) == 0:
+        #return " -L %s:%d-%d" % (chromosome, lo, hi)
         return " -L %s:%d-%d" % (chromosome, lo, hi)
     if includeList.get(chromosome) != None:
         for x in includeList[chromosome]:
