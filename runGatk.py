@@ -55,10 +55,10 @@ def main():
     
     
     reduceInput = {}
-    commandList = splitGenomeLength(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+    #commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+    commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['maximum_chunks'])
         
     for i in range(len(commandList)):
-        #print commandList[i]
         if len(commandList[i]) > 0:
             mapInput = {
                 'mappings_table_id':mappingsTableId,
@@ -89,45 +89,52 @@ def mapGatk():
     regionFile = open("regions.txt", 'w')
     regionFile.write(job['input']['interval'])
     regionFile.close()
-    
+
     gatkIntervals = open("regions.interval_list", 'w')
     for x in re.findall("(\w+):(\d+)-(\d+)", job['input']['interval']):
         gatkIntervals.write(x[0]+":"+x[1]+"-"+x[2]+"\n")
     
+    gatkIntervals.close()
+    regionFile.close()
     
     
     print "Converting Contigset to Fasta"
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
     print "Converting Table to SAM"
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
-    print "Converting to BAM"
-    subprocess.check_call("samtools view -bS input.sam > input.sorted.bam", shell=True)
-    print "Adding Read Groups"
-    subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
-    print "Indexing"
-    subprocess.check_call("samtools index input.rg.bam", shell=True)
     
-    subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
+    if checkSamContainsRead("input.sam"):
+        print "Converting to BAM"
+        subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+        #print "Adding Read Groups"
+        #subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
+        print "Indexing"
+        subprocess.check_call("samtools index input.bam", shell=True)
+    
+        subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
 
-    command = job['input']['command']
-    #print command
-    subprocess.call(command, shell=True)
+        command = job['input']['command'] + job['input']['interval']
+        #print command
+        subprocess.call(command, shell=True)
     
-    command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
-    if job['input']['compress_reference']:
-        command += " --compress_reference"
-    if job['input']['compress_no_call']:
-        command += " --compress_no_call"
-    if job['input']['store_full_vcf']:
-        command += " --store_full_vcf"
-    command += " --extract_header"
-    #print command
-    print "In GATK"
-    subprocess.call(command ,shell=True)
+        command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
+        if job['input']['compress_reference']:
+            command += " --compress_reference"
+        if job['input']['compress_no_call']:
+            command += " --compress_no_call"
+        if job['input']['store_full_vcf']:
+            command += " --store_full_vcf"
+        command += " --extract_header"
+        #print command
+        print "In GATK"
+        subprocess.call(command ,shell=True)
+    else:
+        print "No reads in SAM"
+        print job['input']['interval']
 
 def buildCommand(job):
     
-    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.rg.bam -o output.vcf "
+    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
     command += " -out_mode " + (job['input']['output_mode'])
     command += " -stand_call_conf " +str(job['input']['call_confidence'])
     command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
@@ -230,12 +237,9 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
     included = False
     command = ''
     if len(includeList) == 0:
-        #return " -L %s:%d-%d" % (chromosome, lo, hi)
         return " -L %s:%d-%d" % (chromosome, lo, hi)
     if includeList.get(chromosome) != None:
         for x in includeList[chromosome]:
-            #print "List"
-            #print x
             min = lo
             max = hi
             if (lo >= x[0] and lo <= x[1]) or (hi <= x[1] and hi >= x[0]):
@@ -250,9 +254,41 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
                 command += " -L %s:%d-%d" % (chromosome, min, max)
     return command
 
+def splitGenomeLengthLargePieces(contig_set, chunks):
+    details = dxpy.DXRecord(contig_set).get_details()
+    sizes = details['contigs']['sizes']
+    names = details['contigs']['names']
+    offsets = details['contigs']['offsets']
+
+    commandList = []
+    for i in range(chunks):
+        commandList.append('')
+    position = 0
+    chromosome = 0
+    chunkSize = sum(sizes)/chunks
+    currentChunk = 0
+    currentLength = 0
     
+    while chromosome < len(names):
+        if position + (chunkSize - currentLength) >= sizes[chromosome]:
+            print chromosome
+            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, sizes[chromosome])
+            currentLength += sizes[chromosome] - position
+            chromosome += 1
+            position = 0
+        else:
+            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, position+chunkSize+1)
+            position += chunkSize + 1
+            if currentChunk < chunks-1:
+                currentChunk += 1
+            currentLength = 0
+    return commandList
     
-    
+def checkSamContainsRead(samFileName):
+    for line in open(samFileName, 'r'):
+        if line[0] != "@":
+            return True
+    return False
     
     
     
