@@ -80,7 +80,7 @@ def mapGatk():
 
     gatkIntervals = open("regions.interval_list", 'w')
     for x in re.findall("(\w+):(\d+)-(\d+)", job['input']['interval']):
-        gatkIntervals.write(x[0]+":"+x[1]+"-"+x[2]+"\n")
+        gatkIntervals.write(x[0] + ":" + x[1] + "-" + x[2] + "\n")
     gatkIntervals.close()
 
     print "Converting Contigset to Fasta"
@@ -163,8 +163,9 @@ def extractHeader(vcfFile):
     header = ''
     fileIter = vcfFile.__iter__()
 
-    #Additional data will contain the extra format and info columns that are optional in VCF and may not be
-    #   present in the VCF file. These are stored in an extended table
+    # Additional data will contain the extra format and info columns that
+    # are optional in VCF and may not be present in the VCF file. These are
+    # stored in an extended table.
     additionalColumns = []
     while 1:
         try:
@@ -180,8 +181,8 @@ def extractHeader(vcfFile):
 
 def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
-    t.close(block=True)
     print "Closing Table"
+    t.close()
     job['output']['simplevar'] = dxpy.dxlink(t.get_id())
 
 def checkIntervalRange(includeList, chromosome, lo, hi):
@@ -204,8 +205,6 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
                     max = x[1]
                 command += " -L %s:%d-%d" % (chromosome, min, max)
     return command
-
-
 
 def splitGenomeLengthLargePieces(contig_set, chunks):
     details = dxpy.DXRecord(contig_set).get_details()
