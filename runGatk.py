@@ -100,8 +100,9 @@ def mapGatk():
         subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
 
         command = job['input']['command'] + job['input']['interval']
-        #print command
         subprocess.call(command, shell=True)
+
+        print dxpy.upload_local_file("output.vcf") 
 
         command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
         if job['input']['compress_reference']:
@@ -111,15 +112,13 @@ def mapGatk():
         if job['input']['store_full_vcf']:
             command += " --store_full_vcf"
         command += " --extract_header"
-        #print command
         print "In GATK"
-        subprocess.call(command ,shell=True)
+        subprocess.call(command, shell=True)
     else:
         print "No reads in SAM"
         print job['input']['interval']
 
 def buildCommand(job):
-
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
     command += " -out_mode " + (job['input']['output_mode'])
     command += " -stand_call_conf " +str(job['input']['call_confidence'])
@@ -206,11 +205,17 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
                 command += " -L %s:%d-%d" % (chromosome, min, max)
     return command
 
+
+
 def splitGenomeLengthLargePieces(contig_set, chunks):
     details = dxpy.DXRecord(contig_set).get_details()
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
     offsets = details['contigs']['offsets']
+    
+    for i in range(len(names)):
+        print names[i]+":"+str(sizes[i])
+
 
     commandList = []
     for i in range(chunks):
@@ -223,14 +228,13 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
 
     while chromosome < len(names):
         if position + (chunkSize - currentLength) >= sizes[chromosome]:
-            print chromosome
             commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, sizes[chromosome])
             currentLength += sizes[chromosome] - position
             chromosome += 1
             position = 0
         else:
-            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, position+chunkSize+1)
-            position += chunkSize + 1
+            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, position+(chunkSize-currentLength)+1)
+            position += (chunkSize-currentLength) + 1
             if currentChunk < chunks-1:
                 currentChunk += 1
             currentLength = 0
