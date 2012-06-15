@@ -116,6 +116,8 @@ def mapGatk():
         command = job['input']['command'] + job['input']['interval']
         #print command
         subprocess.call(command, shell=True)
+        
+        print dxpy.upload_local_file("output.vcf") 
     
         command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
         if job['input']['compress_reference']:
@@ -254,11 +256,17 @@ def checkIntervalRange(includeList, chromosome, lo, hi):
                 command += " -L %s:%d-%d" % (chromosome, min, max)
     return command
 
+
+
 def splitGenomeLengthLargePieces(contig_set, chunks):
     details = dxpy.DXRecord(contig_set).get_details()
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
     offsets = details['contigs']['offsets']
+    
+    for i in range(len(names)):
+        print names[i]+":"+str(sizes[i])
+
 
     commandList = []
     for i in range(chunks):
@@ -271,14 +279,13 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
     
     while chromosome < len(names):
         if position + (chunkSize - currentLength) >= sizes[chromosome]:
-            print chromosome
             commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, sizes[chromosome])
             currentLength += sizes[chromosome] - position
             chromosome += 1
             position = 0
         else:
-            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, position+chunkSize+1)
-            position += chunkSize + 1
+            commandList[currentChunk] += checkIntervalRange({}, names[chromosome], position+1, position+(chunkSize-currentLength)+1)
+            position += (chunkSize-currentLength) + 1
             if currentChunk < chunks-1:
                 currentChunk += 1
             currentLength = 0
