@@ -7,6 +7,7 @@ import sys
 import re
 import math
 import operator
+import time
 
 def main():
     
@@ -84,7 +85,7 @@ def main():
     
 def mapGatk():
     
-    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
+    os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     
     regionFile = open("regions.txt", 'w')
     regionFile.write(job['input']['interval'])
@@ -94,12 +95,15 @@ def mapGatk():
     for x in re.findall("(\w+):(\d+)-(\d+)", job['input']['interval']):
         gatkIntervals.write(x[0]+":"+x[1]+"-"+x[2]+"\n")
     
+    gatkInterval = open("regions.interval_list", 'r')
+    print gatkInterval.read()
+    
     gatkIntervals.close()
     regionFile.close()
     
-    
     print "Converting Contigset to Fasta"
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
+    
     print "Converting Table to SAM"
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
     
@@ -111,13 +115,20 @@ def mapGatk():
         print "Indexing"
         subprocess.check_call("samtools index input.bam", shell=True)
     
-        subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
+        #subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
+
+        print "Indexing Dictionary"
+        subprocess.check_call("samtools faidx ref.fa", shell=True)
+        subprocess.call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
+
 
         command = job['input']['command'] + job['input']['interval']
-        #print command
+        print command
         subprocess.call(command, shell=True)
         
-        print dxpy.upload_local_file("output.vcf") 
+        vcf = dxpy.dxlink(dxpy.upload_local_file("output.vcf")) 
+        #print open("output.vcf", 'r').read()
+        
     
         command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
         if job['input']['compress_reference']:
@@ -130,6 +141,11 @@ def mapGatk():
         #print command
         print "In GATK"
         subprocess.call(command ,shell=True)
+        
+        #print vcf
+        #job['output']['vcf'] = vcf
+        
+        
     else:
         print "No reads in SAM"
         print job['input']['interval']

@@ -14,10 +14,10 @@
     {"name": "compress_no_call", "class": "boolean", "default": false},
     {"name": "store_full_vcf", "class": "boolean", "default": true},
     
-    {"name": "minimum_chunk_size", "class": "int", "default":100000},
+    {"name": "minimum_chunk_size", "class": "int", "default":1000000},
     {"name": "maximum_chunks", "class": "int", "default":5},
 
-    {"name": "output_mode", "class": "string", "default": "EMIT_ALL_CONFIDENT_SITES"},
+    {"name": "output_mode", "class": "string", "default": "EMIT_VARIANTS_ONLY"},
     {"name": "call_confidence", "class": "float", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "default": 30.0},
     {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
