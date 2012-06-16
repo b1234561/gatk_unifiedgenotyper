@@ -6,16 +6,16 @@
   "dxapi": "1.03rc",
   "version": "0.0.1",
   "inputs": [
-    {"name": "mappings", "class": "gtable", "type":"LetterMappings"},
+    {"name": "mappings", "class": "gtable", "type": "LetterMappings"},
     {"name": "reference", "class": "record", "type": "ContigSet"},
-    {"name": "output name", "class":"string", "optional":true},
-    
+    {"name": "output name", "class": "string", "optional": true},
+
     {"name": "compress_reference", "class": "boolean", "default": false},
     {"name": "compress_no_call", "class": "boolean", "default": false},
     {"name": "store_full_vcf", "class": "boolean", "default": true},
-    
-    {"name": "minimum_chunk_size", "class": "int", "default":1000000},
-    {"name": "maximum_chunks", "class": "int", "default":5},
+
+
+    {"name": "maximum_chunks", "class": "int", "default": 5},
 
     {"name": "output_mode", "class": "string", "default": "EMIT_VARIANTS_ONLY"},
     {"name": "call_confidence", "class": "float", "default": 30.0},
@@ -23,25 +23,23 @@
     {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
     {"name": "heterozygosity", "class": "float", "default": 0.001},
     {"name": "indel_heterozygosity", "class": "float", "default": 0.000125},
-    {"name": "genotype_likelihood_model", "class": "string", "default":"BOTH"},
-    {"name": "minimum_base_quality", "class": "int", "default":17},
-    {"name": "max_alternate_alleles", "class": "int", "default":3},
-    {"name": "max_deletion_fraction", "class": "float", "default":0.05},
-    {"name": "min_indel_count", "class": "int", "default":5},
-    {"name": "non_reference_probability_model", "class": "string", "default":"EXACT"},
-    {"name": "intervals_to_process", "class":"string", "default":""},
-    {"name": "intervals_to_exclude", "class":"string", "default":""},
-    {"name": "intervals_merging", "class":"string", "default":"UNION"},
-    {"name": "downsample_to_coverage", "class":"int", "default":50000},
-    {"name": "downsample_to_fraction", "class":"float", "default":1.0},
-    {"name": "downsampling_type", "class":"string", "default":"NONE"},
-    {"name": "nondeterministic", "class":"boolean", "default":false}
-    
-
+    {"name": "genotype_likelihood_model", "class": "string", "default": "BOTH"},
+    {"name": "minimum_base_quality", "class": "int", "default": 17},
+    {"name": "max_alternate_alleles", "class": "int", "default": 3},
+    {"name": "max_deletion_fraction", "class": "float", "default": 0.05},
+    {"name": "min_indel_count", "class": "int", "default": 5},
+    {"name": "non_reference_probability_model", "class": "string", "default": "EXACT"},
+    {"name": "intervals_to_process", "class": "string", "default": ""},
+    {"name": "intervals_to_exclude", "class": "string", "default": ""},
+    {"name": "intervals_merging", "class": "string", "default": "UNION"},
+    {"name": "downsample_to_coverage", "class": "int", "default": 50000},
+    {"name": "downsample_to_fraction", "class": "float", "default": 1.0},
+    {"name": "downsampling_type", "class": "string", "default": "NONE"},
+    {"name": "nondeterministic", "class": "boolean", "default": false}
   ],
   "outputs": [
     {"name": "simplevar", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
   ],
-  "run": 
+  "run":
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}
 }
