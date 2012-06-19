@@ -90,7 +90,7 @@ def mapGatk():
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
     print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
+    subprocess.check_call("dx_mappingsTableToSam2 --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
 
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
@@ -115,7 +115,7 @@ def mapGatk():
         vcf = dxpy.dxlink(dxpy.upload_local_file("output.vcf")) 
         #print open("output.vcf", 'r').read()
         
-        command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
+        command = "dx_vcfToSimplevar2 --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
         if job['input']['compress_no_call']:
