@@ -1,5 +1,5 @@
 {
-  "name": "gatk",
+  "name": "gatk2",
   "title": "GATK UnifiedGenotyper",
   "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
   "description": "UnifiedGenotyper takes a set of mapped reads and calls SNP and indels variations from a reference genome. The original GATK was created by the Broad Institute.",
