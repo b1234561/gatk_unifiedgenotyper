@@ -95,11 +95,11 @@ class TestMyApp(unittest.TestCase):
         else:
             mappings = {"$dnanexus_link":mappingsId}
             print mappings
-        print {'mappings':mappings, "output_mode":"EMIT_VARIANTS_ONLY"}
+        #print {'mappings':mappings, "output_mode":"EMIT_VARIANTS_ONLY"}
         #hg19_chr22 reference:
         #job = self.gatk.run({'mappings':mappings, 'reference':{"$dnanexus_link":"record-9ykz7KQ00006B3PXk1b00005"}, "output_mode":"EMIT_VARIANTS_ONLY"})
         
-        job = self.gatk.run({'mappings':mappings, 'reference':{"$dnanexus_link":"record-9zPp07j000035P6yJ9kQ0006"}, "output_mode":"EMIT_VARIANTS_ONLY"})
+        job = self.gatk.run({'mappings':mappings, 'reference':{"$dnanexus_link":"record-9zPp07j000035P6yJ9kQ0006"}, "output_mode":"EMIT_ALL_CONFIDENT_SITES"})
         
         job.wait_on_done()
         print "GATK output:"
