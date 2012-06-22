@@ -11,13 +11,13 @@
     {"name": "output name", "class": "string", "optional": true},
 
     {"name": "compress_reference", "class": "boolean", "default": true},
-    {"name": "compress_no_call", "class": "boolean", "default": true},
+    {"name": "infer_no_call", "class": "boolean", "default": true},
     {"name": "store_full_vcf", "class": "boolean", "default": true},
 
 
     {"name": "maximum_chunks", "class": "int", "default": 5},
 
-    {"name": "output_mode", "class": "string", "default": "EMIT_ALL_SITES"},
+    {"name": "output_mode", "class": "string", "default": "EMIT_ALL_CONFIDENT_SITES"},
     {"name": "call_confidence", "class": "float", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "default": 30.0},
     {"name": "pcr_error_rate", "class": "float", "default": 0.0001},
