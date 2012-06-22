@@ -7,6 +7,9 @@ import os, sys, re, math, operator
 def main():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
+    if job['input']['output_mode'] == "EMIT_VARIANTS_ONLY":
+        job['input']['infer_no_call'] = False
+
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
     try:
@@ -58,7 +61,7 @@ def main():
                 'tableId': tableId,
                 'command': buildCommand(job),
                 'compress_reference': job['input']['compress_reference'],
-                'compress_no_call': job['input']['compress_no_call'],
+                'infer_no_call': job['input']['infer_no_call'],
                 'store_full_vcf': job['input']['store_full_vcf'],
                 'part_number': i
             }
@@ -73,10 +76,8 @@ def main():
 
 def mapGatk():
 
-    
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     
-
     regionFile = open("regions.txt", 'w')
     regionFile.write(job['input']['interval'])
     regionFile.close()
@@ -95,31 +96,24 @@ def mapGatk():
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
         subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
-        #print "Adding Read Groups"
-        #subprocess.call("java -Xmx4g net.sf.picard.sam.AddOrReplaceReadGroups I=input.sorted.bam O=input.rg.bam RGPL=illumina RGID=1 RGSM=1 RGLB=1 RGPU=1", shell=True)
         print "Indexing"
         subprocess.check_call("samtools index input.bam", shell=True)
-
-    
-        #subprocess.check_call("dx_writeReferenceIndex --contig_set %s --writeSamtoolsIndex ref.fa.fai --writePicardDictionary ref.dict" % (job['input']['original_contig_set']), shell=True)
-
         print "Indexing Dictionary"
         subprocess.check_call("samtools faidx ref.fa", shell=True)
         subprocess.call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
-
         command = job['input']['command'] + job['input']['interval']
         print command
         subprocess.call(command, shell=True)
-        
-        vcf = dxpy.dxlink(dxpy.upload_local_file("output.vcf")) 
-        #print open("output.vcf", 'r').read()
-        
-        command = "dx_vcfToSimplevar2 --table_id %s --vcf_file output.vcf" % (job['input']['tableId'])
+
+        vcfFile = reference_sequence = dxpy.dxlink(dxpy.upload_local_file("output.vcf"))
+        print vcfFile
+
+        command = "dx_vcfToSimplevar2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
-        if job['input']['compress_no_call']:
-            command += " --compress_no_call"
+        if job['input']['infer_no_call']:
+            command += " --infer_no_call"
         if job['input']['store_full_vcf']:
             command += " --store_full_vcf"
         command += " --extract_header"
@@ -127,11 +121,9 @@ def mapGatk():
 
         subprocess.call(command, shell=True)
 
-    else:
-        print "No reads in SAM"
-        print job['input']['interval']
-
 def buildCommand(job):
+    
+    
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
     command += " -out_mode " + (job['input']['output_mode'])
     command += " -stand_call_conf " +str(job['input']['call_confidence'])
