@@ -21,20 +21,32 @@ def main():
     variants_schema = [{"name": "chr", "type": "string"},
                        {"name": "lo", "type": "int32"},
                        {"name": "hi", "type": "int32"},
-                       {"name": "type", "type": "string"},    # TODO: change this type to uint once there is an abstraction method for enum?
+                       {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
                        {"name": "ref", "type": "string"},
                        {"name": "alt", "type": "string"},
                        {"name": "qual", "type": "int32"},
                        {"name": "coverage", "type": "int32"},
-                       {"name": "genotype_quality", "type": "int32"}]
-
+                       {"name": "genotypeQuality", "type": "int32"}]
     if job['input']['store_full_vcf']:
         variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
+
+    #variants_schema = [{"name": "chr", "type": "string"},
+    #                   {"name": "lo", "type": "int32"},
+    #                   {"name": "hi", "type": "int32"},
+    #                   {"name": "type", "type": "string"},    # TODO: change this type to uint once there is an abstraction method for enum?
+    #                   {"name": "ref", "type": "string"},
+    #                   {"name": "alt", "type": "string"},
+    #                   {"name": "qual", "type": "int32"},
+    #                   {"name": "coverage", "type": "int32"},
+    #                   {"name": "genotype_quality", "type": "int32"}]
+    #
+    #if job['input']['store_full_vcf']:
+    #    variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
 
     simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'original_contigset': originalContigSet})
+    simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':job['input']['mappings']})
     simpleVar.add_types(["SimpleVar", "gri"])
 
     if 'output name' in job['input']:
