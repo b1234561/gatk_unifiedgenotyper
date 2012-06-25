@@ -46,7 +46,7 @@ def main():
     simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':job['input']['mappings']})
+    simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':[job['input']['mappings']]})
     simpleVar.add_types(["SimpleVar", "gri"])
 
     if 'output name' in job['input']:
@@ -118,9 +118,6 @@ def mapGatk():
         print command
         subprocess.call(command, shell=True)
 
-        vcfFile = reference_sequence = dxpy.dxlink(dxpy.upload_local_file("output.vcf"))
-        print vcfFile
-
         command = "dx_vcfToSimplevar2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
@@ -134,7 +131,6 @@ def mapGatk():
         subprocess.call(command, shell=True)
 
 def buildCommand(job):
-    
     
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
     command += " -out_mode " + (job['input']['output_mode'])
