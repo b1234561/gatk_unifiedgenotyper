@@ -12,6 +12,11 @@ def main():
 
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
+    
+    #This controls the degree of parallelism in GATK
+    chunks = int(mappingsTable.describe()['length']/15000000)
+    
+    
     try:
         contigSetId = mappingsTable.get_details()['original_contigset']['$dnanexus_link']
         originalContigSet = mappingsTable.get_details()['original_contigset']
@@ -64,7 +69,7 @@ def main():
 
     reduceInput = {}
     #commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
-    commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['maximum_chunks'])
+    commandList = splitGenomeLengthLargePieces(originalContigSet, chunks)
 
     for i in range(len(commandList)):
         if len(commandList[i]) > 0:
@@ -154,7 +159,6 @@ def buildCommand(job):
     elif job['input']['downsample_to_fraction'] != 1.0:
         command += " -dfrac " + str(job['input']['downsample_to_fraction'])
 
-    command += " -dt " + job['input']['downsampling_type']
     if job['input']['nondeterministic']:
         command += " -ndrs "
     #print command
