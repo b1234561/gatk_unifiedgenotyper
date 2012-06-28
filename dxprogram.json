@@ -14,9 +14,6 @@
     {"name": "infer_no_call", "class": "boolean", "label":"Infer No-call Sites", "help":"When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": true},
     {"name": "store_full_vcf", "class": "boolean", "label":"Store All VCF Data", "help":"When selected, extra data beyond that stored in the simplevar variants object will be retained to allow for a full reconstitution of the VCF file", "default": true},
 
-
-    {"name": "maximum_chunks", "class": "int", "default": 5},
-
     {"name": "genotype_likelihood_model", "class": "string", "label":"Call SNPs or Indels", "help":"Used to call only SNPs, only Indels, or Both. Possible options:\"SNP\", \"INDEL\", \"BOTH", "default": "BOTH"},
     {"name": "output_mode", "class": "string", "label":"Output Mode", "help":"Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_ALL_CONFIDENT_SITES"},
     {"name": "call_confidence", "class": "float", "label":"Call Threshold", "help":"The call quality required to call a site as variant or reference. Value is in phred-scale confidence", "default": 30.0},
@@ -35,7 +32,7 @@
     {"name": "intervals_merging", "class": "string", "label":"Interval Merge", "help":"If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: \"UNION\" and \"INTERSECTION\". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals", "default": "UNION"},
     {"name": "downsample_to_coverage", "class": "int", "label":"Downsample Coverage", "help":"Sites with coverage beyond this will be randomly downsampled to this value", "default": 1000},
     {"name": "downsample_to_fraction", "class": "float", "label":"Downsample Fraction", "help":"GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
-    {"name": "nondeterministic", "class": "boolean", "label":"Run Nondeterministically", "help":"By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
+    {"name": "nondeterministic", "class": "boolean", "label":"Nondeterministic", "help":"By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
   ],
   "outputs": [
     {"name": "simplevar", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}

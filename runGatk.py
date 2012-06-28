@@ -14,7 +14,7 @@ def main():
     mappingsTableId = mappingsTable.get_id()
     
     #This controls the degree of parallelism in GATK
-    chunks = int(mappingsTable.describe()['length']/15000000)
+    chunks = int(mappingsTable.describe()['length']/15000000)+1
     
     
     try:
