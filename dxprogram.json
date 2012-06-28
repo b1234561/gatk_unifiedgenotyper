@@ -38,5 +38,24 @@
     {"name": "simplevar", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
   ],
   "run":
-    {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]}
+    {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]},
+  "folder":"/gatk",
+  "details":{ "advancedInputs": [
+                  "call_confidence",
+                   "emit_confidence",
+                   "pcr_error_rate",
+                   "heterozygosity",
+                   "indel_heterozygosity",
+                   "minimum_base_quality",
+                   "max_alternate_alleles",
+                   "max_deletion_fraction",
+                   "min_indel_count",
+                   "non_reference_probability_model",
+                   "intervals_to_process",
+                   "intervals_to_exclude",
+                   "intervals_merging",
+                   "downsample_to_coverage",
+                   "downsample_to_fraction",
+                   "nondeterministic"
+                   ]}
 }
