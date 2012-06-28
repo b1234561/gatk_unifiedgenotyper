@@ -39,7 +39,7 @@
   ],
   "run":
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]},
-  "folder":"/gatk",
+  "openSource":true,
   "details":{ "advancedInputs": [
                   "call_confidence",
                    "emit_confidence",
