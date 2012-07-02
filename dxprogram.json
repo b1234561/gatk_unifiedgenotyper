@@ -35,7 +35,7 @@
     {"name": "nondeterministic", "class": "boolean", "label":"Nondeterministic", "help":"By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
   ],
   "outputs": [
-    {"name": "simplevar", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
+    {"name": "variants", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
   ],
   "run":
     {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]},
