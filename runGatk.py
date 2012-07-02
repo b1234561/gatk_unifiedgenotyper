@@ -91,7 +91,7 @@ def main():
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
 
-    job['output'] = {'simplevar': {'job': reduceJobId, 'field': 'simplevar'}}
+    job['output'] = {'variants': {'job': reduceJobId, 'field': 'simplevar'}}
 
 def mapGatk():
 
