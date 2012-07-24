@@ -37,19 +37,6 @@ def main():
     if job['input']['store_full_vcf']:
         variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
 
-    #variants_schema = [{"name": "chr", "type": "string"},
-    #                   {"name": "lo", "type": "int32"},
-    #                   {"name": "hi", "type": "int32"},
-    #                   {"name": "type", "type": "string"},    # TODO: change this type to uint once there is an abstraction method for enum?
-    #                   {"name": "ref", "type": "string"},
-    #                   {"name": "alt", "type": "string"},
-    #                   {"name": "qual", "type": "int32"},
-    #                   {"name": "coverage", "type": "int32"},
-    #                   {"name": "genotype_quality", "type": "int32"}]
-    #
-    #if job['input']['store_full_vcf']:
-    #    variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
-
     simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
@@ -110,7 +97,7 @@ def mapGatk():
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
     print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsTableToSam2 --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
 
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
@@ -125,7 +112,7 @@ def mapGatk():
         print command
         subprocess.call(command, shell=True)
 
-        command = "dx_vcfToSimplevar2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
+        command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
         if job['input']['infer_no_call']:
