@@ -109,10 +109,11 @@ def mapGatk():
         subprocess.call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
         command = job['input']['command'] + job['input']['interval']
-        print command
-        subprocess.call(command, shell=True)
-
-        command = "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
+        #print command
+        #subprocess.call(command, shell=True)
+        command += " | "
+    
+        command += "dx_vcfToSimplevar --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
         if job['input']['infer_no_call']:
