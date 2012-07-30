@@ -37,7 +37,7 @@
     {"name": "variants", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
   ],
   "runSpec":
-    {"file": "runGatk.py", "interpreter": "python2.7", "execDepends": [{"name": "openjdk-6-jre"}]},
+    {"file": "runGatk.py", "interpreter": "python2.7_old", "execDepends": [{"name": "openjdk-6-jre"}]},
   "openSource":true,
   "details": {
     "advancedInputs": [
