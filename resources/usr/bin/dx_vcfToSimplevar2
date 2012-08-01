@@ -170,6 +170,7 @@ def writeVariantRow(simpleVar, line, storeFullVcf):
     infoColumn = line['infoColumn']
     totalCoverage = line['totalCoverage']
     tabSplit = line['tabSplit']
+    strandBias = line['strandBias']
     
     altCoverage = []
     for x in altOptions:
@@ -280,7 +281,7 @@ def writeVariantRow(simpleVar, line, storeFullVcf):
 
         if len(ref) == 0:
             ref = "-"
-        entry = [chr, lo, hi, type, ref.upper(), alt.upper(), qual, coverage, totalCoverage, int(genotypeQuality)]
+        entry = [chr, lo, hi, type, ref.upper(), alt.upper(), qual, coverage, totalCoverage, int(genotypeQuality), strandBias]
         if storeFullVcf:
             entry.append(tabSplit[4])
             vcfSpecificData = ''
@@ -328,6 +329,8 @@ def parseVcfLine(storeSamplesIndividually, input, sample):
     infoColumn = tabSplit[8]
     genotypeQuality = 0
     
+    strandBias = findStrandBias(line)
+    
     if storeSamplesIndividually:
         totalCoverage = re.findall("DP=(\d+);", formatColumn)
         if(len(totalCoverage) > 0):
@@ -337,7 +340,7 @@ def parseVcfLine(storeSamplesIndividually, input, sample):
     else:
         totalCoverage = 0
         
-    return {'chr':chr, 'lo':lo, 'hi':hi, 'ref':ref, 'tabSplit':tabSplit, 'altOptions':altOptions, 'qual':qual, 'formatColumn':formatColumn, 'infoColumn':infoColumn, 'genotypeQuality':genotypeQuality, 'totalCoverage':totalCoverage}
+    return {'chr':chr, 'lo':lo, 'hi':hi, 'ref':ref, 'tabSplit':tabSplit, 'altOptions':altOptions, 'qual':qual, 'formatColumn':formatColumn, 'infoColumn':infoColumn, 'genotypeQuality':genotypeQuality, 'totalCoverage':totalCoverage, 'strandBias':strandBias}
 
 
 
@@ -373,6 +376,7 @@ def getInfoField(fieldName, infoColumn, infoContents):
                 if len(entrySplitInfo) >= position:
                     return entrySplitInfo[position]
     return False
+
     
     
 def applyHeaderInfomation(simpleVarArray, header):
@@ -398,6 +402,13 @@ def findCoveragePerAllele(line):
         result += str(int(float(coverage)*float(fraction)))
     return result
 
+def findStrandBias(line):
+    fraction = re.findall("SB=(.*?);", line)
+    if len(fraction) > 0:
+        return float(fraction[0])
+    else:
+        return -10000.0
+
 def writeReferenceRowData(simpleVar, vcfLine, storeFullVcf, storeInBuffer, refBuffer, sample):
 
     chr = vcfLine['chr']
@@ -409,6 +420,9 @@ def writeReferenceRowData(simpleVar, vcfLine, storeFullVcf, storeInBuffer, refBu
     formatColumn = vcfLine['formatColumn']
     infoColumn = vcfLine['infoColumn']
     tabSplit = vcfLine['tabSplit']
+    strandBias = vcfLine['strandBias']
+    
+    
     
     totalCoverage = 0
     coverage = ''
@@ -425,7 +439,7 @@ def writeReferenceRowData(simpleVar, vcfLine, storeFullVcf, storeInBuffer, refBu
             if mappedReads != False:
                 totalCoverage += int(mappedReads)
 
-    entry = [chr, lo, hi, "ref", ref.upper(), ref.upper(), qual, coverage, totalCoverage, qual]
+    entry = [chr, lo, hi, "ref", ref.upper(), ref.upper(), qual, coverage, totalCoverage, qual, strandBias]
     if storeFullVcf:
         entry.append(tabSplit[4])
         vcfSpecificData = ''
@@ -438,13 +452,13 @@ def writeReferenceRowData(simpleVar, vcfLine, storeFullVcf, storeInBuffer, refBu
         simpleVar.add_rows([entry][:])
 
 def writeCompressedReferenceRow(simpleVar, chr, lo, hi, storeFullVcf):
-    entry = [chr, lo, hi, "ref", "", "", 0, "", 0, 0]
+    entry = [chr, lo, hi, "ref", "", "", 0, "", 0, 0, 0.0]
     if storeFullVcf:
         entry.extend([".", ""])
     simpleVar.add_rows([entry])
 
 def writeNoCallRow(simpleVar, chr, lo, hi, storeFullVcf):
-    entry = [chr, lo, hi, "no-call", "", "", 0, "", 0, 0]
+    entry = [chr, lo, hi, "no-call", "", "", 0, "", 0, 0, 0.0]
     if storeFullVcf:
         entry.extend([".", ""])
     simpleVar.add_rows([entry][:])
@@ -453,14 +467,14 @@ def writeReferenceBuffer(simpleVar, refBuffer, sample, storeFullVcf):
     row = []
     for x in refBuffer[sample][:]:
         if row == []:
-            row = [x[0], x[1], x[2], "ref", "", "", 0, "", 0, 0]
+            row = [x[0], x[1], x[2], "ref", "", "", 0, "", 0, 0, 0.0]
         elif row[2] == x[1]:
             row[2] = x[2]
         else:
             if storeFullVcf:
                 row.extend([".",""])
             simpleVar.add_rows([row])
-            row = [x[0], x[1], x[2], "ref", "", "", 0, "", 0, 0]
+            row = [x[0], x[1], x[2], "ref", "", "", 0, "", 0, 0, 0.0]
     if row != []:
         if storeFullVcf:
             row.extend([".",""])

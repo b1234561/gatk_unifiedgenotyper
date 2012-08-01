@@ -32,7 +32,8 @@ def main():
                        {"name": "qual", "type": "int32"},
                        {"name": "coverage", "type": "string"},
                        {"name": "total_coverage", "type": "int32"},
-                       {"name": "genotype_quality", "type": "int32"}
+                       {"name": "genotype_quality", "type": "int32"},
+                       {"name": "info_SB", "type": "float"}
                        ]
     if job['input']['store_full_vcf']:
         variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
@@ -135,7 +136,12 @@ def mapGatk():
         command += " --extract_header"
         print "In GATK"
 
-        subprocess.call(command, shell=True)
+        try:
+            subprocess.check_call(command, shell=True)
+        except subprocess.CalledProcessError as e:
+            print "bad thing happened", str(e)
+            raise
+        
 
 def buildCommand(job):
     
