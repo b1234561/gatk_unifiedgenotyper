@@ -4,6 +4,8 @@ import dxpy
 import subprocess, logging
 import os, sys, re, math, operator
 
+from multiprocessing import Pool, cpu_count
+
 def main():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
@@ -158,6 +160,7 @@ def buildCommand(job):
     command += " -deletions " + str(job['input']['max_deletion_fraction'])
     command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    command += " -nt " + str(cpu_count())
     command += " -L regions.interval_list"
 
     if job['input']['downsample_to_coverage'] != 50000:
