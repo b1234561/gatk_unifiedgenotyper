@@ -1,4 +1,66 @@
 {
+  "name": "gatk",
+  "title": "GATK UnifiedGenotyper",
+  "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
+  "description": "UnifiedGenotyper takes a set of mapped reads and calls SNP and indels variations from a reference genome. The original GATK was created by the Broad Institute.",
+  "dxapi": "1.03rc",
+  "inputSpec": [
+    {"name": "mappings", "class": "gtable", "label": "Mappings Object", "help": "The mapped reads which will be used to call variants from", "type": "LetterMappings"},
+    {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome to call variants against", "type": "ContigSet"},
+    {"name": "output name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
+
+    {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous rows that are called as reference will be compressed to a single row to save space", "default": true},
+    {"name": "infer_no_call", "class": "boolean", "label": "Infer No-call Sites", "help": "When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": true},
+    {"name": "store_full_vcf", "class": "boolean", "label": "Store All VCF Data", "help": "When selected, extra data beyond that stored in the simplevar variants object will be retained to allow for a full reconstitution of the VCF file", "default": true},
+
+    {"name": "genotype_likelihood_model", "class": "string", "label": "Call SNPs or Indels", "help": "Used to call only SNPs, only Indels, or Both. Possible options:\"SNP\", \"INDEL\", \"BOTH", "default": "BOTH"},
+    {"name": "output_mode", "class": "string", "label": "Output Mode", "help": "Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_ALL_CONFIDENT_SITES"},
+    {"name": "call_confidence", "class": "float", "label": "Call Threshold", "help": "The call quality required to call a site as variant or reference. Value is in phred-scale confidence", "default": 30.0},
+    {"name": "emit_confidence", "class": "float", "label": "Emit Threshold", "help": "The call quality required to write a site (could be written as no-call). Value is in phred-scale confidence", "default": 30.0},
+    {"name": "pcr_error_rate", "class": "float", "label": "PCR Error Rate", "help": "The assumed rate of PCR error", "default": 0.0001},
+    {"name": "heterozygosity", "class": "float", "label": "SNP Heterozygosity", "help": "The assumed prior for the average SNP heterozygosity", "default": 0.001},
+    {"name": "indel_heterozygosity", "class": "float", "label": "Indel Heterozygosity", "help": "The assumed prior for the average Indel heterozygosity", "default": 0.000125},
+    
+    {"name": "minimum_base_quality", "class": "int", "label": "Min Base Quality", "help": "A position in a read must have at least this quality score to be considered for variant calling", "default": 17},
+    {"name": "max_alternate_alleles", "class": "int", "label": "Max Alleles", "help": "Only this many alternate alleles will be considered at a given position", "default": 3},
+    {"name": "max_deletion_fraction", "class": "float", "label": "Max Deletion Fraction", "help": "A site will be considered for SNP calling only if fewer than this fraction of reads have deletions at the position", "default": 0.05},
+    {"name": "min_indel_count", "class": "int", "label": "Min Indel", "help": "To be considered for an indel call, there must be at least this many reads supporting the call", "default": 5},
+    {"name": "non_reference_probability_model", "class": "string", "label": "Probability Model", "help": "What model to use for calling variants. possible options: \"EXACT\" or \"GRID_SEARCH", "default": "EXACT"},
+    {"name": "intervals_to_process", "class": "string", "label": "Process Intervals", "help": "If given, GATK will only call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
+    {"name": "intervals_to_exclude", "class": "string", "label": "Exclude Intervals", "help": "If given, GATK will not call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
+    {"name": "intervals_merging", "class": "string", "label": "Interval Merge", "help": "If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: \"UNION\" and \"INTERSECTION\". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals", "default": "UNION"},
+    {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 1000},
+    {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
+    {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
+  ],
+  "outputSpec": [
+    {"name": "variants", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
+  ],
+  "runSpec":
+    {"file": "runGatk.py", "interpreter": "python2.7_old", "execDepends": [{"name": "openjdk-6-jre"}]},
+  "openSource":true,
+  "details": {
+    "advancedInputs": [
+      "call_confidence",
+      "emit_confidence",
+      "pcr_error_rate",
+      "heterozygosity",
+      "indel_heterozygosity",
+      "minimum_base_quality",
+      "max_alternate_alleles",
+      "max_deletion_fraction",
+      "min_indel_count",
+      "non_reference_probability_model",
+      "intervals_to_process",
+      "intervals_to_exclude",
+      "intervals_merging",
+      "downsample_to_coverage",
+      "downsample_to_fraction",
+      "nondeterministic"
+    ]
+  }
+,
+
     "resources": [],
     "version": "0.0.21",
     "categories": [
