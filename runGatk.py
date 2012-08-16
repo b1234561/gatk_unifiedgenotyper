@@ -4,6 +4,8 @@ import dxpy
 import subprocess, logging
 import os, sys, re, math, operator
 
+from multiprocessing import Pool, cpu_count
+
 def main():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
@@ -16,32 +18,73 @@ def main():
     #This controls the degree of parallelism in GATK
     chunks = int(mappingsTable.describe()['length']/15000000)+1
     
+    command = buildCommand(job)
     
+    #callVariantsOnSample(mappingsTable, command)
+
     try:
         contigSetId = mappingsTable.get_details()['original_contigset']['$dnanexus_link']
         originalContigSet = mappingsTable.get_details()['original_contigset']
     except:
         raise Exception("The original reference genome must be attached as a detail")
 
-    variants_schema = [{"name": "chr", "type": "string"},
-                       {"name": "lo", "type": "int32"},
-                       {"name": "hi", "type": "int32"},
-                       {"name": "type", "type": "string"},     #change this type to uint once there is an abstraction method for enum
-                       {"name": "ref", "type": "string"},
-                       {"name": "alt", "type": "string"},
-                       {"name": "qual", "type": "int32"},
-                       {"name": "coverage", "type": "string"},
-                       {"name": "total_coverage", "type": "int32"},
-                       {"name": "genotype_quality", "type": "int32"}
-                       ]
-    if job['input']['store_full_vcf']:
-        variants_schema.extend([{"name": "vcf_alt", "type": "string"}, {"name": "vcf_additional_data", "type": "string"}])
+    variants_schema = [
+        {"name": "chr", "type": "string"}, 
+        {"name": "lo", "type": "int32"},
+        {"name": "hi", "type": "int32"},
+        {"name": "ref", "type": "string"},
+        {"name": "alt", "type": "string"},
+        {"name": "qual", "type": "float"},
+        {"name": "filter", "type": "string"},
+        {"name": "ids", "type": "string"}
+         ]
+
+    headerInfo = extractHeader("/tmp/header.txt")
+    description = {}
+    samples = []
+
+    print headerInfo
+    print headerInfo['tags']['format']
+
+    elevatedTags = ['format_GT', 'format_DP', 'format_AD']
+    indices = [dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')]
+    
+    formats = {}
+    infos = {}
+    filters = {}
+    
+    for k, v in headerInfo['tags']['info'].iteritems():
+        variants_schema.append({"name": "info_"+k, "type":translateTagTypeToColumnType(v)})
+        description[k] = {'name' : k, 'description' : v['description'], 'type' : v['type'], 'number' : v['number']}
+    
+    numSamples = 1
+    #For each sample, write the sample-specific columns
+    for i in range(numSamples):
+      variants_schema.extend([
+        {"name": "genotype_"+str(i), "type": "string"},
+        {"name": "phasing_"+str(i), "type": "string"},
+        {"name": "type_"+str(i), "type": "string"},
+        {"name": "variation_qual_"+str(i), "type": "float"},
+        {"name": "genotype_qual_"+str(i), "type": "float"},
+        {"name": "coverage_"+str(i), "type": "string"},
+        {"name": "total_coverage_"+str(i), "type": "int32"}
+      ])
+      indices.append(dxpy.DXGTable.lexicographic_index([["type_"+str(i), "ASC"]], 'type_'+str(i)))
+      samples.append("Sample_0")
+      for k, v in headerInfo['tags']['format'].iteritems():
+        if "format_"+k not in elevatedTags:
+          variants_schema.append({"name": "format_"+k+"_"+str(i), "type":translateTagTypeToColumnType(v)})
 
     simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
     tableId = simpleVar.get_id()
     simpleVar = dxpy.open_dxgtable(tableId)
-    simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':[job['input']['mappings']]})
-    simpleVar.add_types(["SimpleVar", "gri"])
+    #simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':[job['input']['mappings']]})
+    simpleVar.add_types(["Variants", "gri"])
+    
+    details = {'samples':samples, 'original_contigset':job['input']['reference'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
+    if headerInfo.get('filters') != {}:
+      details['filters'] = headerInfo['filters']
+    simpleVar.set_details(details)
 
     if 'output name' in job['input']:
         simpleVar.rename(job['input']['output name'])
@@ -68,7 +111,7 @@ def main():
                 'command': buildCommand(job),
                 'compress_reference': job['input']['compress_reference'],
                 'infer_no_call': job['input']['infer_no_call'],
-                'store_full_vcf': job['input']['store_full_vcf'],
+                'compress_no_call': job['input']['compress_no_call'],
                 'part_number': i
             }
             # Run a "map" job for each chunk
@@ -97,7 +140,7 @@ def mapGatk():
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
     print "Converting Table to SAM"
-    subprocess.check_call("dx-mappings-to-sam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
+    subprocess.check_call("dx_mappingsToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
 
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
@@ -110,19 +153,19 @@ def mapGatk():
 
         command = job['input']['command'] + job['input']['interval']
         #print command
-        #subprocess.call(command, shell=True)
-        command += " | "
+        print "In GATK"
+        subprocess.call(command, shell=True)
+        #command += " | "
     
-        command += "dx-vcf-to-simplevar --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
+        command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
         if job['input']['infer_no_call']:
             command += " --infer_no_call"
-        if job['input']['store_full_vcf']:
-            command += " --store_full_vcf"
-        command += " --extract_header"
-        print "In GATK"
-
+        if job['input']['compress_no_call']:
+            command += " --compress_no_call"
+        
+        print "Parsing Variants"
         subprocess.call(command, shell=True)
 
 def buildCommand(job):
@@ -140,6 +183,7 @@ def buildCommand(job):
     command += " -deletions " + str(job['input']['max_deletion_fraction'])
     command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    command += " --num_threads " + str(cpu_count())
     command += " -L regions.interval_list"
 
     if job['input']['downsample_to_coverage'] != 50000:
@@ -165,26 +209,6 @@ def runTrivialTest(contig_set, command):
     command += ' -L ' + chromosome+':1-1'
     subprocess.call(command, shell=True)
     return extractHeader(open("output.vcf", 'r'))
-
-def extractHeader(vcfFile):
-    header = ''
-    fileIter = vcfFile.__iter__()
-
-    # Additional data will contain the extra format and info columns that
-    # are optional in VCF and may not be present in the VCF file. These are
-    # stored in an extended table.
-    additionalColumns = []
-    while 1:
-        try:
-            input = fileIter.next()
-            if input[0] == "#":
-                header += input
-                #extract additional column header data
-                if(input[1] != "#"):
-                    tabSplit = input.split("\t")
-                    return header
-        except StopIteration:
-            break
 
 def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
@@ -246,8 +270,50 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
             currentLength = 0
     return commandList
 
+def callVariantsOnSample(mappingsTable, command):
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output dummy.sam --end_row 100" % (job['input']['mappings_table_id']), shell=True)
+
+def extractHeader(vcfFileName):
+    result = {'columns': '', 'tags' : {'format' : {}, 'info' : {} }, 'filters' : {}}
+    for line in open(vcfFileName):
+        tag = re.findall("ID=(\w+),", line)
+        if len(tag) > 0:
+          tagType = ''
+          if line.count("FORMAT") > 0:
+            tagType = 'format'
+          elif line.count("INFO") > 0:
+            tagType = 'info'
+          elif line.count("FILTER") > 0:
+            result['filters'][re.findall("ID=(\w+),")[0]] = re.findall('Description="(.*)"')[0]
+      
+          typ = re.findall("Type=(\w+),", line)
+          if tagType != '':
+            number = re.findall("Number=(\w+)", line)
+            description = re.findall('Description="(.*)"', line)
+            if len(number) == 0:
+              number = ['.']
+            if len(description) == 0:
+              description = ['']
+            result['tags'][tagType][tag[0]] = {'type':typ[0], 'description' : description[0], 'number' : number[0]}
+        if line[0] == "#" and line[1] != "#":
+          result['columns'] = line.strip()
+        if line == '' or line[0] != "#":
+            break
+    return result
+
 def checkSamContainsRead(samFileName):
     for line in open(samFileName, 'r'):
         if line[0] != "@":
             return True
     return False
+
+def translateTagTypeToColumnType(tag):
+  if tag['type'] == "Flag":
+    return "boolean"
+  if tag['number'] != '1':
+    return 'string'
+  if tag['type'] == "Integer":
+    return 'int32'
+  if tag['type'] == "Float":
+    return "float"
+  return "string"

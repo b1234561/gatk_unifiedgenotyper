@@ -10,9 +10,9 @@
     {"name": "output name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
 
     {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous rows that are called as reference will be compressed to a single row to save space", "default": true},
-    {"name": "infer_no_call", "class": "boolean", "label": "Infer No-call Sites", "help": "When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": true},
-    {"name": "store_full_vcf", "class": "boolean", "label": "Store All VCF Data", "help": "When selected, extra data beyond that stored in the simplevar variants object will be retained to allow for a full reconstitution of the VCF file", "default": true},
-
+    {"name": "infer_no_call", "class": "boolean", "label": "Infer No-call Sites", "help": "When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": false},
+    {"name": "compress_no_call", "class": "boolean", "default": false, "label": "Compress No-call", "help": "If selected, contiguous no-calls in the genome will be condensed to one row. This often saves significant space"}, 
+    
     {"name": "genotype_likelihood_model", "class": "string", "label": "Call SNPs or Indels", "help": "Used to call only SNPs, only Indels, or Both. Possible options:\"SNP\", \"INDEL\", \"BOTH", "default": "BOTH"},
     {"name": "output_mode", "class": "string", "label": "Output Mode", "help": "Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_ALL_CONFIDENT_SITES"},
     {"name": "call_confidence", "class": "float", "label": "Call Threshold", "help": "The call quality required to call a site as variant or reference. Value is in phred-scale confidence", "default": 30.0},
@@ -34,7 +34,7 @@
     {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
   ],
   "outputSpec": [
-    {"name": "variants", "class": "gtable", "type": {"$and": ["SimpleVar", "gri"]}}
+    {"name": "variants", "class": "gtable", "type": {"$and": ["Variants", "gri"]}}
   ],
   "runSpec":
     {"file": "runGatk.py", "interpreter": "python2.7_old", "execDepends": [{"name": "openjdk-6-jre"}]},
