@@ -16,7 +16,7 @@ def main():
     mappingsTableId = mappingsTable.get_id()
     
     #This controls the degree of parallelism in GATK
-    chunks = int(mappingsTable.describe()['length']/15000000)+1
+    chunks = int(mappingsTable.describe()['length']/job['input']['reads_per_job'])+1
     
     command = buildCommand(job)
     
