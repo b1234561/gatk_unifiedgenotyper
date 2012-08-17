@@ -75,27 +75,26 @@ def main():
         if "format_"+k not in elevatedTags:
           variants_schema.append({"name": "format_"+k+"_"+str(i), "type":translateTagTypeToColumnType(v)})
 
-    simpleVar = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
-    tableId = simpleVar.get_id()
-    simpleVar = dxpy.open_dxgtable(tableId)
-    #simpleVar.set_details({'original_contigset': originalContigSet, 'original_mappings':[job['input']['mappings']]})
-    simpleVar.add_types(["Variants", "gri"])
+    variantsTable = dxpy.new_dxgtable(variants_schema, indices=[dxpy.DXGTable.genomic_range_index("chr", "lo", "hi", "gri")])
+    tableId = variantsTable.get_id()
+    variantsTable = dxpy.open_dxgtable(tableId)
+    variantsTable.add_types(["Variants", "gri"])
     
     details = {'samples':samples, 'original_contigset':job['input']['reference'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
     if headerInfo.get('filters') != {}:
       details['filters'] = headerInfo['filters']
-    simpleVar.set_details(details)
+    variantsTable.set_details(details)
 
     if 'output name' in job['input']:
-        simpleVar.rename(job['input']['output name'])
+        variantsTable.rename(job['input']['output name'])
     elif (job['input']['genotype_likelihood_model'] == "SNP"):
-        simpleVar.rename(mappingsTable.describe()['name'] + " SNP calls by GATK")
+        variantsTable.rename(mappingsTable.describe()['name'] + " SNP calls by GATK")
     elif (job['input']['genotype_likelihood_model'] == "INDEL"):
-        simpleVar.rename(mappingsTable.describe()['name'] + " indel calls by GATK")
+        variantsTable.rename(mappingsTable.describe()['name'] + " indel calls by GATK")
     elif (job['input']['genotype_likelihood_model'] == "BOTH"):
-        simpleVar.rename(mappingsTable.describe()['name'] + " SNP and indel calls by GATK")
+        variantsTable.rename(mappingsTable.describe()['name'] + " SNP and indel calls by GATK")
     else:
-        simpleVar.rename(mappingsTable.describe()['name'] + " variant calls by GATK")
+        variantsTable.rename(mappingsTable.describe()['name'] + " variant calls by GATK")
 
     reduceInput = {}
     #commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
@@ -121,11 +120,12 @@ def main():
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
 
-    job['output'] = {'variants': {'job': reduceJobId, 'field': 'simplevar'}}
+    job['output'] = {'variants': {'job': reduceJobId, 'field': 'variants'}}
 
 def mapGatk():
 
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
+    print os.environ
     
     regionFile = open("regions.txt", 'w')
     regionFile.write(job['input']['interval'])
@@ -214,7 +214,7 @@ def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
     print "Closing Table"
     t.close(block=True)
-    job['output']['simplevar'] = dxpy.dxlink(t.get_id())
+    job['output']['variants'] = dxpy.dxlink(t.get_id())
 
 def checkIntervalRange(includeList, chromosome, lo, hi):
     included = False
