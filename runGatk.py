@@ -80,7 +80,7 @@ def main():
     variantsTable = dxpy.open_dxgtable(tableId)
     variantsTable.add_types(["Variants", "gri"])
     
-    details = {'samples':samples, 'original_contigset':job['input']['reference'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
+    details = {'samples':samples, 'original_contigset':job['input']['reference'], 'original_mappings':job['input']['mappings'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
     if headerInfo.get('filters') != {}:
       details['filters'] = headerInfo['filters']
     variantsTable.set_details(details)
