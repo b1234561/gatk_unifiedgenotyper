@@ -34,7 +34,7 @@ def main():
         {"name": "hi", "type": "int32"},
         {"name": "ref", "type": "string"},
         {"name": "alt", "type": "string"},
-        {"name": "qual", "type": "float"},
+        {"name": "qual", "type": "double"},
         {"name": "filter", "type": "string"},
         {"name": "ids", "type": "string"}
          ]
@@ -64,8 +64,8 @@ def main():
         {"name": "genotype_"+str(i), "type": "string"},
         {"name": "phasing_"+str(i), "type": "string"},
         {"name": "type_"+str(i), "type": "string"},
-        {"name": "variation_qual_"+str(i), "type": "float"},
-        {"name": "genotype_qual_"+str(i), "type": "float"},
+        {"name": "variation_qual_"+str(i), "type": "double"},
+        {"name": "genotype_qual_"+str(i), "type": "double"},
         {"name": "coverage_"+str(i), "type": "string"},
         {"name": "total_coverage_"+str(i), "type": "int32"}
       ])
@@ -315,5 +315,5 @@ def translateTagTypeToColumnType(tag):
   if tag['type'] == "Integer":
     return 'int32'
   if tag['type'] == "Float":
-    return "float"
+    return "double"
   return "string"
