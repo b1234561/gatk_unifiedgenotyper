@@ -78,7 +78,7 @@ def main():
                 tagDefaults[x['name']] = missingDefault
             if x['type'] == 'boolean':
                 tagDefaults[x['name']] = False
-            if x['type'] == 'float':
+            if x['type'] == 'double':
                 tagDefaults[x['name']] = float(missingDefault)
             if x['name'].count("format") > 0:
                 if x['name'] not in tagOrder['format']:
@@ -459,7 +459,7 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
         entry[3] = ''
         if compressNoCall == False:
             checkEntry(entry, typeCheck)
-            variantsTable.add_rows([[entry][:]])
+            variantsTable.add_rows([[entry]])
         return "write ref buffer"
     elif allRef and len(samples) > 0:
         entry[3] = ''
@@ -469,10 +469,10 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
             return "no action"
         else:
             checkEntry(entry, typeCheck)
-            variantsTable.add_rows([entry[:]])
+            variantsTable.add_rows([entry])
     else:
         checkEntry(entry, typeCheck)
-        variantsTable.add_rows([entry[:]])
+        variantsTable.add_rows([entry])
         return "write ref buffer"
         
 def checkLeftPhasing(phased, position):
@@ -501,7 +501,7 @@ def writeCompressedRow(variantsTable, chr, lo, hi, typ):
             entry.extend(['./.', './.'])
         entry.extend([typ, float(missingDefault), float(missingDefault), '', missingDefault ])
         entry.extend(appendTags(tagOrder['format'], {}))
-    variantsTable.add_rows([entry][:])
+    variantsTable.add_rows([entry])
 
 def writeNoCallRow(variantsTable, chr, lo, hi, tagOrder, tagDefaults):
     entry = [chr, lo, hi, "", ""]
@@ -509,11 +509,11 @@ def writeNoCallRow(variantsTable, chr, lo, hi, tagOrder, tagDefaults):
     for i in samples:
         entry.extend(["", "no-call", 0, 0, '', 0, False])
         entry.extend(appendTags(tagOrder['format'], {}))
-    variantsTable.add_rows([entry][:])
+    variantsTable.add_rows([entry])
     
 def writeReferenceBuffer(variantsTable, refBuffer):
     row = []
-    for x in refBuffer[:]:
+    for x in refBuffer:
         if row == []:
             row = [x[0], x[1], x[2]]
         elif row[2] == x[1]:
@@ -524,7 +524,9 @@ def writeReferenceBuffer(variantsTable, refBuffer):
     if row != []:
         row.extend(["."])
         writeCompressedRow(variantsTable, row[0], row[1], row[2], 'ref')
-    refBuffer[:] = []
+    for x in refBuffer:
+        del x
+    refBuffer = []
 
 def unpack_and_open(input):
     m = magic.Magic()
@@ -593,7 +595,7 @@ def checkEntry(entry, typeCheck):
     
     for i in range(len(typeCheck)):
         if isinstance(entry[i], float):
-            if typeCheck[i] != 'float':
+            if typeCheck[i] != 'double':
                 print str(i) + " entry, expected "+typeCheck[i]+", got " + str(entry[i])
                 print entry
         elif isinstance(entry[i], bool):

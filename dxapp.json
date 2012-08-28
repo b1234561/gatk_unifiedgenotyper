@@ -29,7 +29,7 @@
     {"name": "intervals_to_process", "class": "string", "label": "Process Intervals", "optional":true, "help": "If given, GATK will only call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
     {"name": "intervals_to_exclude", "class": "string", "label": "Exclude Intervals", "optional":true, "help": "If given, GATK will not call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
     {"name": "intervals_merging", "class": "string", "label": "Interval Merge", "help": "If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: \"UNION\" and \"INTERSECTION\". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals", "default": "UNION"},
-    {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 1000},
+    {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 250},
     {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
     {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
   ],
@@ -63,7 +63,7 @@
 ,
 
     "resources": [],
-    "version": "0.0.25",
+    "version": "0.0.26",
     "categories": [
         "Variation calling"
     ]
