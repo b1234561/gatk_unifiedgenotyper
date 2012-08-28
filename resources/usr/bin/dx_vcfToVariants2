@@ -91,11 +91,6 @@ def main():
 
     #fileIter = vcfFile.__iter__()
     count = 1
-
-    #Additional data will contain the extra format and info columns that are optional in VCF and may not be
-    #   present in the VCF file. These are stored in an extended table 
-    additionalData = []
-
     refBuffer = []
 
     try:
@@ -132,13 +127,12 @@ def main():
     lastRegion = ['', -1]
         
     header = ''
-    #vcfFile = codecs.open(vcfFileName, 'r', encoding=encoding)
-    vcfFile = open(vcfFileName, 'r')       
+    vcfFile = codecs.open(vcfFileName, 'r', encoding=encoding)
+    #vcfFile = open(vcfFileName, 'r')       
     #with unpack_and_open(vcfFileName) as vcfFile:
     #for input in open(vcfFileName, 'r'):
     while 1:
         try:
-            #input = vcfFile.next()
             try:
                 rawInput = unicode(vcfFile.next())
                 input = rawInput.encode('utf8', 'replace')
@@ -146,7 +140,6 @@ def main():
                 raise AppError("Could parse some characters in the file, please check the encoding of the file, perhaps it is not "+encoding)
             if count%100000 == 0:
                 print "Processed count %i variants " % count
-            count += 1
             if input[0] != "#":
                 vcfLine = parseVcfLine(input)
                 regionIndex = checkWithinRegion(vcfLine['chr'], vcfLine['lo'], vcfLine['hi'], regions)
@@ -158,14 +151,14 @@ def main():
                         priors['chr'] = vcfLine['chr']
                     if vcfLine['hi'] > highestObservedInRegion[vcfLine['chr']][regionIndex]:
                         highestObservedInRegion[vcfLine['chr']][regionIndex] = vcfLine['hi']
-                        if writeRow(variantsTable, vcfLine, compressReference, compressNoCall, refBuffer) == "write ref buffer":
-                            writeReferenceBuffer(variantsTable, refBuffer)
+                    if writeRow(variantsTable, vcfLine, compressReference, compressNoCall, refBuffer) == "write ref buffer":
+                        writeReferenceBuffer(variantsTable, refBuffer)
                     #If there are intervening blank lines, write those as no-call
-                    if vcfLine['lo'] - priors['position'] > 0:
-                        priors['position'] = vcfLine['hi']
+                    if vcfLine['lo'] > priors['position']:
                         if inferNoCall:
                             writeCompressedRow(variantsTable, priors['chr'], priors['position'], vcfLine['lo'], 'no-call')
-                    priors['position'] = vcfLine['hi']
+                    if vcfLine['hi'] > priors['position']:
+                        priors['position'] = vcfLine['hi']
                 else:
                     writeReferenceBuffer(variantsTable, refBuffer)
         except StopIteration:
@@ -173,7 +166,7 @@ def main():
         except UnicodeDecodeError:
             print "UnicodeError"
     writeReferenceBuffer(variantsTable, refBuffer)
-
+    
     if inferNoCall:
         for chr, reg in highestObservedInRegion.iteritems():
             for i in range(len(reg)):
@@ -216,8 +209,7 @@ def parseVcfLine(input):
     filt = tabSplit[6]
     if filt == '.':
         filt = ''
-    if altOptions == ['']:
-        ref = ''
+    
     overlap = checkOverlap(ref, altOptions)
 
     #print "here"
@@ -228,6 +220,8 @@ def parseVcfLine(input):
     lo += overlap
     ref = ref[overlap:]
     hi = lo + len(ref)
+    if altOptions == ['']:
+        ref = ''
     
     for i in range(len(altOptions)):
         altOptions[i] = altOptions[i][overlap:]
@@ -368,6 +362,8 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
     entry = [chr, lo, hi, ref, alt, qual, filt, ids]
     entry.extend(appendTags(tagOrder['info'], infoTags))
     
+    
+    
     for i in range(len(samples)):
         genotype = formatTags[i]['format_GT'].replace("|", "/")
         totalCoverage = int(formatTags[i]['format_DP'])
@@ -377,27 +373,38 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
             phased = True
         
         genotypeSplit = re.split("[\|\/]", formatTags[i]['format_GT'])
-        
                 
         phasing = {}
         
         if len(re.split("[\|\/]", formatTags[i]['format_GT'])) == len(re.split("[\|]", formatTags[i]['format_GT'])) and len(re.split("[\|\/]", formatTags[i]['format_GT'])) > 0 and '.' not in genotypeSplit:
             for j in range(len(genotypeSplit)):
-                phasing[int(genotypeSplit[j])].append(j)
+                if phasing.get(int(genotypeSplit[j])) == None:
+                    phasing[int(genotypeSplit[j])] = [j]
+                else:
+                    phasing[int(genotypeSplit[j])].append(j)
             
         if '.' not in genotypeSplit:
             for j in range(len(genotypeSplit)):
                 genotypeSplit[j] = int(genotypeSplit[j])
             genotypeSplit.sort()
-            
-            
+        
+        homozygous = True
+        if len(genotypeSplit) > 0:
+            for x in genotypeSplit:
+                if x != genotypeSplit[0]:
+                    homozygous = False
+        
         phasedField = ''
+        allelePos = 0
         for x in genotypeSplit:
             if phasing.get(x) == None:
                 phasedField += './'
+            elif homozygous:
+                phasedField += str(allelePos)+"/"
             else:
                 phasedField += str(phasing[x][0])+'/'
                 phasing[x].pop(0)
+            allelePos += 1
         phasedField = phasedField.rstrip('/')
     
         
@@ -447,21 +454,15 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
 
         entry.extend([genotype, phasedField, type, sampleVariantQuality, sampleGenotypeQuality, coverage, totalCoverage])
         entry.extend(appendTags(tagOrder['format'], formatTags[i]))
-        
-    if allNoCall:
+
+    if allNoCall and len(samples) > 0:
         entry[3] = ''
-        #This accounts for blank ref
-        if entry[2] - entry[1] == 0:
-            entry[2] = entry[1]+1
         if compressNoCall == False:
             checkEntry(entry, typeCheck)
             variantsTable.add_rows([[entry][:]])
         return "write ref buffer"
-    elif allRef:
+    elif allRef and len(samples) > 0:
         entry[3] = ''
-        #This accounts for blank ref
-        if entry[2] - entry[1] == 0:
-            entry[2] = entry[1]+1
         if compressReference:
             checkEntry(entry, typeCheck)
             refBuffer.append(entry[:])
