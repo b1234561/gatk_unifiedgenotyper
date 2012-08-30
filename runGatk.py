@@ -145,9 +145,11 @@ def mapGatk():
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
         subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+        print "Sorting BAM"
+        subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
         print "Indexing"
-        subprocess.check_call("samtools index input.bam", shell=True)
-        print "Indexing Dictionary"
+        subprocess.check_call("samtools index input.sorted.bam", shell=True)
+        print "Indexing Reference"
         subprocess.check_call("samtools faidx ref.fa", shell=True)
         subprocess.call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
@@ -170,7 +172,7 @@ def mapGatk():
 
 def buildCommand(job):
     
-    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
+    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.sorted.bam -o output.vcf "
     if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job['input']['output_mode'])
     if job['input']['call_confidence'] != 30.0:

@@ -1,6 +1,6 @@
 {
-  "name": "gatk",
-  "title": "GATK UnifiedGenotyper",
+  "name": "gatk_experimental",
+  "title": "GATK UnifiedGenotyper (Experimental)",
   "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
   "description": "UnifiedGenotyper takes a set of mapped reads and calls SNP and indels variations from a reference genome. The original GATK was created by the Broad Institute.",
   "dxapi": "1.03rc",
@@ -69,7 +69,7 @@
 ,
 
     "resources": [],
-    "version": "0.0.28",
+    "version": "0.0.29",
     "categories": [
         "Variation calling"
     ]
