@@ -31,7 +31,10 @@
     {"name": "intervals_merging", "class": "string", "label": "Interval Merge", "help": "If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: \"UNION\" and \"INTERSECTION\". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals", "default": "UNION"},
     {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 250},
     {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
-    {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false}
+    {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false},
+    {"name": "calculate_BAQ", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters. Possible options are: \"OFF\", \"CALCULATE AS NECESSARY\", and \"RECALCULATE\"", "default":"OFF"},
+    {"name": "BAQ_gap_open_penalty", "class":"float", "label":"BAQ Gap Open Penalty", "help":"If calculate BAQ enabled, what penalty to apply to the calculated BAQ score when a gap is opened", "default":30.0},
+    {"name": "no_output_SLOD", "class":"boolean", "label":"Don't Output SLOD", "help":"When selected, SLOD will not be calculated ", "default":false}
   ],
   "outputSpec": [
     {"name": "variants", "class": "gtable", "type": {"$and": ["Variants", "gri"]}}
@@ -41,6 +44,8 @@
   "openSource":true,
   "details": {
     "advancedInputs": [
+      "BAQ_gap_open_penalty",
+      "calculate_BAQ",
       "call_confidence",
       "emit_confidence",
       "pcr_error_rate",
@@ -51,6 +56,7 @@
       "max_alternate_alleles",
       "max_deletion_fraction",
       "min_indel_count",
+      "no_output_SLOD",
       "non_reference_probability_model",
       "intervals_to_process",
       "intervals_to_exclude",
@@ -63,7 +69,7 @@
 ,
 
     "resources": [],
-    "version": "0.0.26",
+    "version": "0.0.28",
     "categories": [
         "Variation calling"
     ]

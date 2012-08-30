@@ -171,28 +171,54 @@ def mapGatk():
 def buildCommand(job):
     
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.bam -o output.vcf "
-    command += " -out_mode " + (job['input']['output_mode'])
-    command += " -stand_call_conf " +str(job['input']['call_confidence'])
-    command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
-    command += " -pcr_error " +str(job['input']['pcr_error_rate'])
-    command += " -hets " + str(job['input']['heterozygosity'])
-    command += " -indelHeterozygosity " + str(job['input']['indel_heterozygosity'])
-    command += " -glm " + job['input']['genotype_likelihood_model']
-    command += " -mbq " + str(job['input']['minimum_base_quality'])
-    command += " -maxAlleles " + str(job['input']['max_alternate_alleles'])
-    command += " -deletions " + str(job['input']['max_deletion_fraction'])
-    command += " -minIndelCnt " + str(job['input']['min_indel_count'])
-    command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
+        command += " -out_mode " + (job['input']['output_mode'])
+    if job['input']['call_confidence'] != 30.0:
+        command += " -stand_call_conf " +str(job['input']['call_confidence'])
+    if job['input']['emit_confidence'] != 30.0:
+        command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
+    if job['input']['pcr_error_rate'] != 0.0001:
+        command += " -pcr_error " +str(job['input']['pcr_error_rate'])
+    if job['input']['heterozygosity'] != 0.001:
+        command += " -hets " + str(job['input']['heterozygosity'])
+    if job['input']['indel_heterozygosity'] != 0.000125:
+        command += " -indelHeterozygosity " + str(job['input']['indel_heterozygosity'])
+    if job['input']['genotype_likelihood_model'] != "BOTH":
+        command += " -glm " + job['input']['genotype_likelihood_model']
+    if job['input']['minimum_base_quality'] != 17:
+        command += " -mbq " + str(job['input']['minimum_base_quality'])
+    if job['input']['max_alternate_alleles'] != 3:
+        command += " -maxAlleles " + str(job['input']['max_alternate_alleles'])
+    if job['input']['max_deletion_fraction'] != 0.05:
+        command += " -deletions " + str(job['input']['max_deletion_fraction'])
+    if job['input']['min_indel_count'] != 5:
+        command += " -minIndelCnt " + str(job['input']['min_indel_count'])
+    if job['input']['non_reference_probability_model'] != "EXACT":
+        if job['input']['non_reference_probability_model'] != "GRID_SEARCH":
+            raise AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
+        command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    
     command += " --num_threads " + str(cpu_count())
     command += " -L regions.interval_list"
 
-    if job['input']['downsample_to_coverage'] != 50000:
+    if job['input']['downsample_to_coverage'] != 250:
         command += " -dcov " + str(job['input']['downsample_to_coverage'])
     elif job['input']['downsample_to_fraction'] != 1.0:
         command += " -dfrac " + str(job['input']['downsample_to_fraction'])
 
     if job['input']['nondeterministic']:
         command += " -ndrs "
+
+    if job['input']['calculate_BAQ'] != "OFF":
+        if job['input']['calculate_BAQ'] != "CALCULATE_AS_NECESSARY" and job['input']['calculate_BAQ'] != "RECALCULATE":
+            raise AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job['input']['calculate_BAQ'] + " instead")
+        command += "-baq " + job['input']['calculate_BAQ']
+        if job['input']['BAQ_gap_open_penalty'] != 40.0:
+            command += "-baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
+    if job['input']['no_output_SLOD']:
+        command += "-nosl"
+    
+    
     #print command
     return command
 
