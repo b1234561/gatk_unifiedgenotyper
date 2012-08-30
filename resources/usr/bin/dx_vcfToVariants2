@@ -105,7 +105,7 @@ def main():
     
     if opts.region_file != "":
         regionText = open(opts.region_file, 'r').read()
-        intervalMatch = re.findall("(\w+):(\d+)-(\d+)", regionText)
+        intervalMatch = re.findall("-L ([^:]*):(\d+)-(\d+)", regionText)
         for x in intervalMatch:
             if regions.get(x[0]) == None:
                 regions[x[0]] = []
