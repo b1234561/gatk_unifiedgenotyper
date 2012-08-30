@@ -459,21 +459,21 @@ def writeRow(variantsTable, line, compressReference, compressNoCall, refBuffer):
     if allNoCall and len(samples) > 0:
         entry[3] = ''
         if compressNoCall == False:
-            checkEntry(entry, typeCheck)
-            variantsTable.add_rows([[entry][:]])
+            #checkEntry(entry, typeCheck)
+            variantsTable.add_rows([entry[:]])
         return "write ref buffer"
     elif allRef and len(samples) > 0:
         entry[3] = ''
         if compressReference:
-            checkEntry(entry, typeCheck)
+            #checkEntry(entry, typeCheck)
             refBuffer.append(entry[:])
             return "no action"
         else:
-            checkEntry(entry, typeCheck)
-            variantsTable.add_rows([entry][:])
+            #checkEntry(entry, typeCheck)
+            variantsTable.add_rows([entry[:]])
     else:
         checkEntry(entry, typeCheck)
-        variantsTable.add_rows([entry][:])
+        variantsTable.add_rows([entry[:]])
         return "write ref buffer"
         
 def checkLeftPhasing(phased, position):
@@ -502,7 +502,7 @@ def writeCompressedRow(variantsTable, chr, lo, hi, typ):
             entry.extend(['./.', './.'])
         entry.extend([typ, float(missingDefault), float(missingDefault), '', missingDefault ])
         entry.extend(appendTags(tagOrder['format'], {}))
-    variantsTable.add_rows([entry][:])
+    variantsTable.add_rows([entry[:]])
 
 def writeNoCallRow(variantsTable, chr, lo, hi, tagOrder, tagDefaults):
     entry = [chr, lo, hi, "", ""]
@@ -510,7 +510,7 @@ def writeNoCallRow(variantsTable, chr, lo, hi, tagOrder, tagDefaults):
     for i in samples:
         entry.extend(["", "no-call", 0, 0, '', 0, False])
         entry.extend(appendTags(tagOrder['format'], {}))
-    variantsTable.add_rows([entry][:])
+    variantsTable.add_rows([entry[:]])
     
 def writeReferenceBuffer(variantsTable, refBuffer):
     row = []
