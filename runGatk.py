@@ -39,14 +39,15 @@ def main():
         {"name": "ids", "type": "string"}
          ]
 
-    headerInfo = extractHeader("/tmp/header.txt")
+    elevatedTags = ['format_GT', 'format_DP', 'format_AD']
+    headerInfo = extractHeader("/tmp/header.txt", elevatedTags)
     description = {}
     samples = []
 
     print headerInfo
     print headerInfo['tags']['format']
 
-    elevatedTags = ['format_GT', 'format_DP', 'format_AD']
+    
     indices = [dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')]
     
     formats = {}
@@ -141,7 +142,6 @@ def mapGatk():
 
     print "Converting Table to SAM"
     subprocess.check_call("dx_mappingsToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
-
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
         subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
@@ -301,7 +301,7 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
 def callVariantsOnSample(mappingsTable, command):
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output dummy.sam --end_row 100" % (job['input']['mappings_table_id']), shell=True)
 
-def extractHeader(vcfFileName):
+def extractHeader(vcfFileName, elevatedTags):
     result = {'columns': '', 'tags' : {'format' : {}, 'info' : {} }, 'filters' : {}}
     for line in open(vcfFileName):
         tag = re.findall("ID=(\w+),", line)
@@ -322,7 +322,8 @@ def extractHeader(vcfFileName):
               number = ['.']
             if len(description) == 0:
               description = ['']
-            result['tags'][tagType][tag[0]] = {'type':typ[0], 'description' : description[0], 'number' : number[0]}
+            if "format_"+tag[0] not in elevatedTags:
+                result['tags'][tagType][tag[0]] = {'type':typ[0], 'description' : description[0], 'number' : number[0]}
         if line[0] == "#" and line[1] != "#":
           result['columns'] = line.strip()
         if line == '' or line[0] != "#":
