@@ -40,7 +40,11 @@
     {"name": "variants", "class": "gtable", "type": {"$and": ["Variants", "gri"]}}
   ],
   "runSpec":
-    {"file": "runGatk.py", "interpreter": "python2.7_old", "execDepends": [{"name": "openjdk-6-jre"}]},
+    {"file": "runGatk.py", "interpreter": "python2.7_old", "execDepends": [{"name": "openjdk-6-jre"}, {"name": "dx-toolkit",
+                     "package_manager": "git",
+                     "url": "git@github.com:dnanexus/dx-toolkit.git",
+                     "tag": "master",
+                     "build_commands": "make install DESTDIR=/ PREFIX=/opt/dnanexus"}]},
   "openSource":true,
   "details": {
     "advancedInputs": [
@@ -69,7 +73,7 @@
 ,
 
     "resources": [],
-    "version": "0.0.44",
+    "version": "0.0.45",
     "categories": [
         "Variation calling"
     ]
