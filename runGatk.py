@@ -141,7 +141,7 @@ def mapGatk():
     subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
     print "Converting Table to SAM"
-    subprocess.check_call("dx_mappingsToSam --table_id %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
+    subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
     if checkSamContainsRead("input.sam"):
         print "Converting to BAM"
         subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
