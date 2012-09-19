@@ -14,7 +14,7 @@
     {"name": "compress_no_call", "class": "boolean", "default": false, "label": "Compress No-call", "help": "If selected, contiguous no-calls in the genome will be condensed to one row. This often saves significant space"}, 
     {"name": "reads_per_job", "class": "int", "label": "Reads per Job", "help": "Controls the degree of parallelism. The number of jobs created to run the program will be the total number of reads divided by this", "default": 25000000},
     {"name": "genotype_likelihood_model", "class": "string", "label": "Call SNPs or Indels", "help": "Used to call only SNPs, only Indels, or Both. Possible options:\"SNP\", \"INDEL\", \"BOTH", "default": "BOTH"},
-    {"name": "output_mode", "class": "string", "label": "Output Mode", "help": "Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_ALL_CONFIDENT_SITES"},
+    {"name": "output_mode", "class": "string", "label": "Output Mode", "help": "Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_VARIANTS_ONLY"},
     {"name": "call_confidence", "class": "float", "label": "Call Threshold", "help": "The call quality required to call a site as variant or reference. Value is in phred-scale confidence", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "label": "Emit Threshold", "help": "The call quality required to write a site (could be written as no-call). Value is in phred-scale confidence", "default": 30.0},
     {"name": "pcr_error_rate", "class": "float", "label": "PCR Error Rate", "help": "The assumed rate of PCR error", "default": 0.0001},
@@ -73,7 +73,7 @@
 ,
 
     "resources": [],
-    "version": "0.0.49",
+    "version": "0.0.50",
     "categories": [
         "Variation calling"
     ]
