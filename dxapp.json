@@ -69,12 +69,11 @@
       "downsample_to_fraction",
       "nondeterministic"
     ]
-  }
-,
-
-    "resources": [],
-    "version": "0.0.50",
-    "categories": [
-        "Variation calling"
-    ]
+  },
+  "resources": [],
+  "version": "0.0.50",
+  "categories": [
+    "Variation calling"
+  ],
+  "access": { "network": ["github.com"]}
 }
