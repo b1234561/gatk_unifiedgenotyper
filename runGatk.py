@@ -171,6 +171,8 @@ def mapGatk():
         print "Parsing Variants"
         subprocess.call(command, shell=True)
 
+    job['output']['id'] = job['input']['mappings_table_id']
+
 def buildCommand(job):
     
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.sorted.bam -o output.vcf "
