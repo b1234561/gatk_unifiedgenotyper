@@ -134,7 +134,7 @@ def mapGatk():
     regionFile.close()
 
     gatkIntervals = open("regions.interval_list", 'w')
-    for x in re.findall("(\w+):(\d+)-(\d+)", job['input']['interval']):
+    for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job['input']['interval']):
         gatkIntervals.write(x[0] + ":" + x[1] + "-" + x[2] + "\n")
     gatkIntervals.close()
 
@@ -152,12 +152,12 @@ def mapGatk():
         subprocess.check_call("samtools index input.sorted.bam", shell=True)
         print "Indexing Reference"
         subprocess.check_call("samtools faidx ref.fa", shell=True)
-        subprocess.call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
+        subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
         command = job['input']['command'] + job['input']['interval']
         #print command
         print "In GATK"
-        subprocess.call(command, shell=True)
+        subprocess.check_call(command, shell=True)
         #command += " | "
     
         command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
@@ -169,7 +169,7 @@ def mapGatk():
             command += " --compress_no_call"
         
         print "Parsing Variants"
-        subprocess.call(command, shell=True)
+        subprocess.check_call(command, shell=True)
 
     job['output']['id'] = job['input']['mappings_table_id']
 
