@@ -72,8 +72,6 @@
   },
   "resources": [],
   "version": "0.0.56",
-  "categories": [
-    "Variation calling"
-  ],
+  "categories": ["Variation calling"],
   "access": { "network": ["github.com"]}
 }
