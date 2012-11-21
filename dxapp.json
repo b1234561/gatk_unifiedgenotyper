@@ -68,7 +68,5 @@
   },
   "resources": [],
   "version": "0.0.57",
-  "categories": [
-    "Variation calling"
-  ]
+  "categories": ["Variation calling"]
 }
