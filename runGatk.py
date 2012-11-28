@@ -81,8 +81,8 @@ def main():
     variantsTable.add_types(["Variants", "gri"])
     
     details = {'samples':samples, 'original_contigset':job['input']['reference'], 'original_mappings':job['input']['mappings'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
-    if headerInfo.get('filters') != {}:
-      details['filters'] = headerInfo['filters']
+    #if headerInfo.get('filters') != {}:
+    #  details['filters'] = headerInfo['filters']
     variantsTable.set_details(details)
 
     if 'output name' in job['input']:
