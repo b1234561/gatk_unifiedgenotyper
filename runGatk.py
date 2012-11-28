@@ -35,7 +35,6 @@ def main():
         {"name": "ref", "type": "string"},
         {"name": "alt", "type": "string"},
         {"name": "qual", "type": "double"},
-        {"name": "filter", "type": "string"},
         {"name": "ids", "type": "string"}
          ]
 
