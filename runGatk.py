@@ -187,7 +187,7 @@ def buildCommand(job):
         command += " -hets " + str(job['input']['heterozygosity'])
     if job['input']['indel_heterozygosity'] != 0.000125:
         command += " -indelHeterozygosity " + str(job['input']['indel_heterozygosity'])
-    if job['input']['genotype_likelihood_model'] != "BOTH":
+    if job['input']['genotype_likelihood_model'] != "SNP":
         command += " -glm " + job['input']['genotype_likelihood_model']
     if job['input']['minimum_base_quality'] != 17:
         command += " -mbq " + str(job['input']['minimum_base_quality'])
