@@ -243,7 +243,7 @@ def runTrivialTest(contig_set, command):
 def reduceGatk():
     t = dxpy.open_dxgtable(job['input']['tableId'])
     print "Closing Table"
-    t.close(block=True)
+    t.close()
     job['output']['variants'] = dxpy.dxlink(t.get_id())
 
 def checkIntervalRange(includeList, chromosome, lo, hi):

@@ -71,6 +71,6 @@
     "upstreamLicencses": ["MIT"],
     "citations": ["doi:10.1101/gr.107524.110"]
   },
-  "version": "0.0.63",
+  "version": "0.0.64",
   "categories": ["Variation calling"]
 }
