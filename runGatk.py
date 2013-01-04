@@ -85,8 +85,8 @@ def main():
     #  details['filters'] = headerInfo['filters']
     variantsTable.set_details(details)
 
-    if 'output name' in job['input']:
-        variantsTable.rename(job['input']['output name'])
+    if 'output_name' in job['input']:
+        variantsTable.rename(job['input']['output_name'])
     elif (job['input']['genotype_likelihood_model'] == "SNP"):
         variantsTable.rename(mappingsTable.describe()['name'] + " SNP calls by GATK")
     elif (job['input']['genotype_likelihood_model'] == "INDEL"):

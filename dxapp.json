@@ -7,7 +7,7 @@
   "inputSpec": [
     {"name": "mappings", "class": "gtable", "label": "Mappings Object", "help": "The mapped reads which will be used to call variants from", "type": "LetterMappings"},
     {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome to call variants against", "type": "ContigSet"},
-    {"name": "output name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
+    {"name": "output_name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
 
     {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous rows that are called as reference will be compressed to a single row to save space", "default": true},
     {"name": "infer_no_call", "class": "boolean", "label": "Infer No-call Sites", "help": "When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": false},
@@ -26,15 +26,15 @@
     {"name": "max_deletion_fraction", "class": "float", "label": "Max Deletion Fraction", "help": "A site will be considered for SNP calling only if fewer than this fraction of reads have deletions at the position", "default": 0.05},
     {"name": "min_indel_count", "class": "int", "label": "Min Indel", "help": "To be considered for an indel call, there must be at least this many reads supporting the call", "default": 5},
     {"name": "non_reference_probability_model", "class": "string", "label": "Probability Model", "help": "What model to use for calling variants. possible options: \"EXACT\" or \"GRID_SEARCH", "default": "EXACT"},
-    {"name": "intervals_to_process", "class": "string", "label": "Process Intervals", "optional":true, "help": "If given, GATK will only call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
-    {"name": "intervals_to_exclude", "class": "string", "label": "Exclude Intervals", "optional":true, "help": "If given, GATK will not call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
+    {"name": "intervals_to_process", "class": "string", "label": "Process Intervals", "optional": true, "help": "If given, GATK will only call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
+    {"name": "intervals_to_exclude", "class": "string", "label": "Exclude Intervals", "optional": true, "help": "If given, GATK will not call variants on these regions. Input must be a string of format \"-L chr:lo-hi\" which can have as many -L arguments as desired", "default": ""},
     {"name": "intervals_merging", "class": "string", "label": "Interval Merge", "help": "If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: \"UNION\" and \"INTERSECTION\". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals", "default": "UNION"},
     {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 250},
     {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
     {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false},
-    {"name": "calculate_BAQ", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters. Possible options are: \"OFF\", \"CALCULATE AS NECESSARY\", and \"RECALCULATE\"", "default":"OFF"},
-    {"name": "BAQ_gap_open_penalty", "class":"float", "label":"BAQ Gap Open Penalty", "help":"If calculate BAQ enabled, what penalty to apply to the calculated BAQ score when a gap is opened", "default":30.0},
-    {"name": "no_output_SLOD", "class":"boolean", "label":"Don't Output SLOD", "help":"When selected, SLOD will not be calculated ", "default":false}
+    {"name": "calculate_BAQ", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters. Possible options are: \"OFF\", \"CALCULATE AS NECESSARY\", and \"RECALCULATE\"", "default": "OFF"},
+    {"name": "BAQ_gap_open_penalty", "class": "float", "label": "BAQ Gap Open Penalty", "help": "If calculate BAQ enabled, what penalty to apply to the calculated BAQ score when a gap is opened", "default": 30.0},
+    {"name": "no_output_SLOD", "class": "boolean", "label": "Don't Output SLOD", "help": "When selected, SLOD will not be calculated ", "default": false}
   ],
   "outputSpec": [
     {"name": "variants", "class": "gtable", "type": {"$and": ["Variants", "gri"]}}
