@@ -199,7 +199,7 @@ def buildCommand(job):
         command += " -minIndelCnt " + str(job['input']['min_indel_count'])
     if job['input']['non_reference_probability_model'] != "EXACT":
         if job['input']['non_reference_probability_model'] != "GRID_SEARCH":
-            raise AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
+            raise dxpy.AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
         command += " -pnrm " + str(job['input']['non_reference_probability_model'])
     
     command += " --num_threads " + str(cpu_count())
@@ -215,7 +215,7 @@ def buildCommand(job):
 
     if job['input']['calculate_BAQ'] != "OFF":
         if job['input']['calculate_BAQ'] != "CALCULATE_AS_NECESSARY" and job['input']['calculate_BAQ'] != "RECALCULATE":
-            raise AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job['input']['calculate_BAQ'] + " instead")
+            raise dxpy.AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job['input']['calculate_BAQ'] + " instead")
         command += "-baq " + job['input']['calculate_BAQ']
         if job['input']['BAQ_gap_open_penalty'] != 40.0:
             command += "-baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
