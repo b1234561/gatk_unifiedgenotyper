@@ -138,7 +138,7 @@ def mapGatk():
     gatkIntervals.close()
 
     print "Converting Contigset to Fasta"
-    subprocess.check_call("contigset2fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
+    subprocess.check_call("dx-contigset-to-fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
     print "Converting Table to SAM"
     subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
