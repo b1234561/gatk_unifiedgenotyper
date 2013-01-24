@@ -1,5 +1,5 @@
 {
-  "name": "gatk_variant_caller",
+  "name": "gatk_unifiedgenotyper",
   "title": "GATK UnifiedGenotyper",
   "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
   "dxapi": "1.0.0",
