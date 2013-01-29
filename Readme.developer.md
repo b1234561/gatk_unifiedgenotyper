@@ -7,7 +7,8 @@ Introduction
 This is an app which runs the UnifiedGenotyper module within the GenomeAnalysisToolkit
 (GATK) to produce variant calls from a set of mapped reads.
 
-### UnifiedGenotyper
+UnifiedGenotyper
+----------------
 
 * <a href="http://www.broadinstitute.org/gatk/">GATK site</a>
 * <a href="http://www.broadinstitute.org/gatk/gatkdocs/org_broadinstitute_sting_gatk_CommandLineGATK.html">UnifiedGenotyper Documentation (includes command options)</a>
@@ -47,7 +48,7 @@ Most input parameters correspond to options that GATK would expect running in st
 <tr><td>calculate_BAQ</td><td>Calculate BAQ</td><td>-baq (Per-base quality scores) Another quality metric for mappings that can be used for filters</td><td>[OFF, CALCULATE_AS_NECESSARY, RECALCULATE]</td><td>OFF</td></tr>
 <tr><td>BAQ_gap_open_penalty</td><td>BAQ Gap Open Penalty</td><td>-baqGOP (Phred scaled)</td><td>double</td><td>40.0 (30.0 is suggested for WGS)</td></tr>
 <tr><td>no_output_SLOD</td><td>Don't Output Slod</td><td>-nosl (Recalibrates score using a model constructed from the high quality sites, outputs a "more accurate" probability for variant call</td><td>Boolean</td><td>False</td></tr>
-<tr><td>intervals_to_process</td><td>Process Intervals</td><td>-L</td><td>List of regions to process in the form of any number of -L <chr>lo-hi (e.g. -L chr1:100-200 -L chr1:300-500 -L chr5:1000-2000).</td><td>None</td>
+<tr><td>intervals_to_process</td><td>Process Intervals</td><td>-L</td><td>List of regions to process in the form of any number of -L CHR:lo-hi (e.g. -L chr1:100-200 -L chr1:300-500 -L chr5:1000-2000).</td><td>None</td>
 <tr><td>intervals_to_exclude</td><td>Exclude Intervals</td><td>-XL</td><td>As above, except these intervals are excluded</td><td>None</td></tr>
 <tr><td>intervals_merging</td><td>Interval Merge</td><td>-im If multiple intervals are given, this controls the rules by which they specify regions. Possible options are: "UNION" and "INTERSECTION". Selecting union will add all regions while intersection will only take regions contained in all of the specified intervals</td><td>[UNION, INTERSECTION]<td>ALL</td></tr>
 <tr><td>downsample_to_coverage</td><td>Downsample Coverage</td><td>-dcov (Randomly downsamples reads at each locus to a given number)</td><td>int</td><td>Not present</td></tr>
