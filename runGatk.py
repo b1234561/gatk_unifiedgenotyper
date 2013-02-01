@@ -38,12 +38,12 @@ def main():
 
     mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
-    
+
     #This controls the degree of parallelism in GATK
     chunks = int(mappingsTable.describe()['length']/job['input']['reads_per_job'])+1
-    
+
     command = buildCommand(job)
-    
+
     #callVariantsOnSample(mappingsTable, command)
 
     try:
@@ -53,7 +53,7 @@ def main():
         raise Exception("The original reference genome must be attached as a detail")
 
     variants_schema = [
-        {"name": "chr", "type": "string"}, 
+        {"name": "chr", "type": "string"},
         {"name": "lo", "type": "int32"},
         {"name": "hi", "type": "int32"},
         {"name": "ref", "type": "string"},
@@ -70,17 +70,17 @@ def main():
     print headerInfo
     print headerInfo['tags']['format']
 
-    
+
     indices = [dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')]
-    
+
     formats = {}
     infos = {}
     filters = {}
-    
+
     for k, v in headerInfo['tags']['info'].iteritems():
         variants_schema.append({"name": "info_"+k, "type":translateTagTypeToColumnType(v)})
         description[k] = {'name' : k, 'description' : v['description'], 'type' : v['type'], 'number' : v['number']}
-    
+
     numSamples = 1
     #For each sample, write the sample-specific columns
     for i in range(numSamples):
@@ -103,7 +103,7 @@ def main():
     tableId = variantsTable.get_id()
     variantsTable = dxpy.open_dxgtable(tableId)
     variantsTable.add_types(["Variants", "gri"])
-    
+
     details = {'samples':samples, 'original_contigset':job['input']['reference'], 'original_mappings':job['input']['mappings'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
     #if headerInfo.get('filters') != {}:
     #  details['filters'] = headerInfo['filters']
@@ -150,10 +150,10 @@ def mapGatk():
 
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     print os.environ
-    
+
     regionFile = open("regions.txt", 'w')
     regionFile.write(job['input']['interval'])
-    
+
     regionFile.close()
 
     gatkIntervals = open("regions.interval_list", 'w')
@@ -182,7 +182,7 @@ def mapGatk():
         print "In GATK"
         subprocess.check_call(command, shell=True)
         #command += " | "
-    
+
         command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
         if job['input']['compress_reference']:
             command += " --compress_reference"
@@ -190,14 +190,14 @@ def mapGatk():
             command += " --infer_no_call"
         if job['input']['compress_no_call']:
             command += " --compress_no_call"
-        
+
         print "Parsing Variants"
         subprocess.check_call(command, shell=True)
 
     job['output']['id'] = job['input']['mappings_table_id']
 
 def buildCommand(job):
-    
+
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.sorted.bam -o output.vcf "
     if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job['input']['output_mode'])
@@ -225,7 +225,7 @@ def buildCommand(job):
         if job['input']['non_reference_probability_model'] != "GRID_SEARCH":
             raise dxpy.AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
         command += " -pnrm " + str(job['input']['non_reference_probability_model'])
-    
+
     command += " --num_threads " + str(cpu_count())
     command += " -L regions.interval_list"
 
@@ -245,8 +245,8 @@ def buildCommand(job):
             command += "-baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
     if job['input']['no_output_SLOD']:
         command += "-nosl"
-    
-    
+
+
     #print command
     return command
 
@@ -296,7 +296,7 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
     sizes = details['contigs']['sizes']
     names = details['contigs']['names']
     offsets = details['contigs']['offsets']
-    
+
     for i in range(len(names)):
         print names[i]+":"+str(sizes[i])
 
@@ -339,7 +339,7 @@ def extractHeader(vcfFileName, elevatedTags):
             tagType = 'info'
           elif line.count("FILTER") > 0:
             result['filters'][re.findall("ID=(\w+),")[0]] = re.findall('Description="(.*)"')[0]
-      
+
           typ = re.findall("Type=(\w+),", line)
           if tagType != '':
             number = re.findall("Number=(\w+)", line)
