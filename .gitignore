@@ -1,0 +1,7 @@
+resources/opt/snpEff/data/*
+samtools/*.o
+samtools/*.a
+samtools/samtools
+samtools/bcftools/*.o
+samtools/bcftools/*.a
+resources/usr/bin/samtools
