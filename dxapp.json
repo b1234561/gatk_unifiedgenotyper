@@ -1,4 +1,4 @@
-variant_annotator{
+{
   "name": "gatk_unifiedgenotyper",
   "title": "GATK UnifiedGenotyper",
   "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
