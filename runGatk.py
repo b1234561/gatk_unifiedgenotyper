@@ -36,11 +36,14 @@ def main():
     if job['input']['output_mode'] == "EMIT_VARIANTS_ONLY":
         job['input']['infer_no_call'] = False
 
-    mappingsTable = dxpy.open_dxgtable(job['input']['mappings']['$dnanexus_link'])
+    mappingsTable = dxpy.open_dxgtable(job['input']['mappings'][0]['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
 
     #This controls the degree of parallelism in GATK
-    chunks = int(mappingsTable.describe()['length']/job['input']['reads_per_job'])+1
+    reads = 0
+    for x in job['input']['mappings']:
+        reads += int(dxpy.DXGTable(x).describe()['length'])
+    chunks = int(reads/job['input']['reads_per_job'])+1
 
     command = buildCommand(job)
 
@@ -67,10 +70,6 @@ def main():
     description = {}
     samples = []
 
-    print headerInfo
-    print headerInfo['tags']['format']
-
-
     indices = [dxpy.DXGTable.genomic_range_index("chr","lo","hi", 'gri')]
 
     formats = {}
@@ -81,7 +80,13 @@ def main():
         variants_schema.append({"name": "info_"+k, "type":translateTagTypeToColumnType(v)})
         description[k] = {'name' : k, 'description' : v['description'], 'type' : v['type'], 'number' : v['number']}
 
-    numSamples = 1
+    samples = []
+    for i in range(len(job['input']['mappings'])):
+        samples.append(dxpy.DXGTable(job['input']['mappings'][i]).describe()['name'].replace(" ", ""))
+    numSamples = len(job['input']['mappings'])
+    if job['input']['call_multiple_samples'] == False:
+        numSamples = 1
+        samples = ["Sample_0"]
     #For each sample, write the sample-specific columns
     for i in range(numSamples):
       variants_schema.extend([
@@ -94,7 +99,6 @@ def main():
         {"name": "total_coverage_"+str(i), "type": "int32"}
       ])
       indices.append(dxpy.DXGTable.lexicographic_index([["type_"+str(i), "ASC"]], 'type_'+str(i)))
-      samples.append("Sample_0")
       for k, v in headerInfo['tags']['format'].iteritems():
         if "format_"+k not in elevatedTags:
           variants_schema.append({"name": "format_"+k+"_"+str(i), "type":translateTagTypeToColumnType(v)})
@@ -127,7 +131,7 @@ def main():
     for i in range(len(commandList)):
         if len(commandList[i]) > 0:
             mapInput = {
-                'mappings_table_id': mappingsTableId,
+                'mappings_tables': job['input']['mappings'],
                 'original_contig_set': contigSetId,
                 'interval': commandList[i],
                 'tableId': tableId,
@@ -135,7 +139,9 @@ def main():
                 'compress_reference': job['input']['compress_reference'],
                 'infer_no_call': job['input']['infer_no_call'],
                 'compress_no_call': job['input']['compress_no_call'],
-                'part_number': i
+                'part_number': i,
+                'samples': samples,
+                'call_multiple_samples': job['input']['call_multiple_samples']
             }
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
@@ -164,41 +170,55 @@ def mapGatk():
     print "Converting Contigset to Fasta"
     subprocess.check_call("dx-contigset-to-fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
 
-    print "Converting Table to SAM"
-    subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt" % (job['input']['mappings_table_id']), shell=True)
-    if checkSamContainsRead("input.sam"):
-        print "Converting to BAM"
-        subprocess.check_call("samtools view -bS input.sam > input.bam", shell=True)
+    for i in range(len(job['input']['mappings_tables'])):
+        mappingsTableId = dxpy.DXGTable(job['input']['mappings_tables'][i]).get_id()
+
+        if job['input']['call_multiple_samples'] == False:
+            sample = "Sample_0"
+        else:
+            sample = job['input']['samples'][i]
+
+        print "Converting Table to SAM"
+        #subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt --sample %s" % (job['input']['mappings_table_id']), shell=True)
+        subprocess.check_call("dx_mappings_to_sam.py %s --output input.%d.sam --region_index_offset -1 --region_file regions.txt --sample %s" % (mappingsTableId, i, sample), shell=True)
+        if checkSamContainsRead("input.%d.sam" % i):
+            print "Converting to BAM"
+            subprocess.check_call("samtools view -bS input.%d.sam > input.%d.bam" % (i, i), shell=True)
+        else:
+            subprocess.check_call("samtools view -HbS input.%d.sam > input.%d.bam" % (i, i), shell=True)
         print "Sorting BAM"
-        subprocess.check_call("samtools sort input.bam input.sorted", shell=True)
+        subprocess.check_call("samtools sort input.%d.bam input.%d.sorted" % (i, i), shell=True)
         print "Indexing"
-        subprocess.check_call("samtools index input.sorted.bam", shell=True)
-        print "Indexing Reference"
-        subprocess.check_call("samtools faidx ref.fa", shell=True)
-        subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
+        subprocess.check_call("samtools index input.%d.sorted.bam" % i, shell=True)
+        job['input']['command'] += " -I input.%d.sorted.bam" % i
+        
+    print "Indexing Reference"
+    subprocess.check_call("samtools faidx ref.fa", shell=True)
+    subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
-        command = job['input']['command'] + job['input']['interval']
-        #print command
-        print "In GATK"
-        subprocess.check_call(command, shell=True)
-        #command += " | "
+    command = job['input']['command'] + job['input']['interval']
+    #print command
+    print "In GATK"
+    subprocess.check_call(command, shell=True)
+    #command += " | "
 
-        command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
-        if job['input']['compress_reference']:
-            command += " --compress_reference"
-        if job['input']['infer_no_call']:
-            command += " --infer_no_call"
-        if job['input']['compress_no_call']:
-            command += " --compress_no_call"
+    command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
+    if job['input']['compress_reference']:
+        command += " --compress_reference"
+    if job['input']['infer_no_call']:
+        command += " --infer_no_call"
+    if job['input']['compress_no_call']:
+        command += " --compress_no_call"
 
-        print "Parsing Variants"
-        subprocess.check_call(command, shell=True)
+    print "Parsing Variants"
+    subprocess.check_call(command, shell=True)
 
-    job['output']['id'] = job['input']['mappings_table_id']
+    job['output']['id'] = job['input']['tableId']
+    
 
 def buildCommand(job):
 
-    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -I input.sorted.bam -o output.vcf "
+    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf "
     if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job['input']['output_mode'])
     if job['input']['call_confidence'] != 30.0:
@@ -245,7 +265,6 @@ def buildCommand(job):
             command += "-baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
     if job['input']['no_output_SLOD']:
         command += "-nosl"
-
 
     #print command
     return command
