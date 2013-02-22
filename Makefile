@@ -29,6 +29,7 @@ samtools:
 	cp -a samtools/samtools resources/usr/bin/samtools
 
 clean:
+	$(MAKE) -C samtools clean
 	rm -f resources/usr/bin/samtools
 
 .PHONY: all samtools clean
