@@ -247,7 +247,7 @@ def buildCommand(job):
         command += " -pnrm " + str(job['input']['non_reference_probability_model'])
 
     threads = str(cpu_count())
-    if job["input"].get(["num_threads"]) != None:
+    if job["input"].get("num_threads") != None:
         if job["input"]["num_threads"] < str(cpu_count) and job["input"]["num_threads"] > 0:
             threads = str(job["input"]["num_threads"])
 
