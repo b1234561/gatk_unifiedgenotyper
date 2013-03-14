@@ -246,7 +246,14 @@ def buildCommand(job):
             raise dxpy.AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
         command += " -pnrm " + str(job['input']['non_reference_probability_model'])
 
-    command += " --num_threads " + str(cpu_count())
+    threads = str(cpu_count())
+    if job["input"].get(["num_threads"]) != None:
+        if job["input"]["num_threads"] < str(cpu_count) and job["input"]["num_threads"] > 0:
+            threads = str(job["input"]["num_threads"])
+
+
+
+    command += " --num_threads " + threads
     command += " -L regions.interval_list"
 
     if job['input']['downsample_to_coverage'] != 250:

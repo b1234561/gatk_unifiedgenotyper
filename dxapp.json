@@ -21,6 +21,7 @@
     {"name": "heterozygosity", "class": "float", "label": "SNP Heterozygosity", "help": "The assumed prior for the average SNP heterozygosity", "default": 0.001},
     {"name": "indel_heterozygosity", "class": "float", "label": "Indel Heterozygosity", "help": "The assumed prior for the average Indel heterozygosity", "default": 0.000125},
 
+    {"name": "num_threads", "class": "int", "label": "Number of Threads", "help": "Run UnifiedGenotyper with this number of threads. If not provided, app will use all available cores."},
     {"name": "minimum_base_quality", "class": "int", "label": "Min Base Quality", "help": "A position in a read must have at least this quality score to be considered for variant calling", "default": 17},
     {"name": "max_alternate_alleles", "class": "int", "label": "Max Alleles", "help": "Only this many alternate alleles will be considered at a given position", "default": 3},
     {"name": "max_deletion_fraction", "class": "float", "label": "Max Deletion Fraction", "help": "A site will be considered for SNP calling only if fewer than this fraction of reads have deletions at the position", "default": 0.05},
@@ -76,6 +77,6 @@
     "citations": ["doi:10.1101/gr.107524.110"]
   },
   "access": {"network": ["*"]},
-  "version": "0.0.67",
+  "version": "0.0.68",
   "categories": ["Variation calling"]
 }
