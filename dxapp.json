@@ -68,7 +68,8 @@
       "intervals_merging",
       "downsample_to_coverage",
       "downsample_to_fraction",
-      "nondeterministic"
+      "nondeterministic",
+      "num_threads"
     ],
     "upstreamAuthor": "Broad Institute",
     "upstreamVersion": "1.5-21-g979a84a",
@@ -77,6 +78,6 @@
     "citations": ["doi:10.1101/gr.107524.110"]
   },
   "access": {"network": ["*"]},
-  "version": "0.0.68",
+  "version": "0.0.69",
   "categories": ["Variation calling"]
 }
