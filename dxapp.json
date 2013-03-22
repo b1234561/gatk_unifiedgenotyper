@@ -4,17 +4,17 @@
   "summary": "UnifiedGenotyper from Genome Analysis Toolkit",
   "dxapi": "1.0.0",
   "inputSpec": [
-    {"name": "mappings", "class": "array:gtable", "label": "Mappings Objects", "help": "The mapped reads which will be used to call variants from", "type": "LetterMappings"},
-    {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome to call variants against", "type": "ContigSet"},
+    {"name": "mappings", "class": "array:gtable", "label": "Mappings Objects", "help": "The mapped reads from which variants will be called", "type": "LetterMappings"},
+    {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome against which to call variants", "type": "ContigSet"},
     {"name": "output_name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
 
-    {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous rows that are called as reference will be compressed to a single row to save space", "default": true},
+    {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous positions called as reference will be compressed to a single row to save space", "default": true},
     {"name": "infer_no_call", "class": "boolean", "label": "Infer No-call Sites", "help": "When selected, positions in the reference genome lacking any calls will be explicitly written to the variants object as no-call", "default": false},
-    {"name": "compress_no_call", "class": "boolean", "default": false, "label": "Compress No-call", "help": "If selected, contiguous no-calls in the genome will be condensed to one row. This often saves significant space"},
+    {"name": "compress_no_call", "class": "boolean", "default": false, "label": "Compress No-call", "help": "When selected, contiguous no-calls in the genome will be condensed to one row. This often saves significant space"},
     {"name": "reads_per_job", "class": "int", "label": "Reads per Job", "help": "Controls the degree of parallelism. The number of jobs created to run the program will be the total number of reads divided by this", "default": 25000000},
     {"name": "genotype_likelihood_model", "class": "string", "label": "Call SNPs or Indels", "help": "Used to call only SNPs, only Indels, or Both. Possible options:\"SNP\", \"INDEL\", \"BOTH", "default": "BOTH"},
     {"name": "output_mode", "class": "string", "label": "Output Mode", "help": "Controls how much GATK writes. Possible options are: \"EMIT_VARIANTS_ONLY\", \"EMIT_ALL_CONFIDENT_SITES\", and \"EMIT_ALL_SITES\". Emitting additional sites can help give an idea of effective genome coverage. WARNING: emitting all sites can take much longer", "default": "EMIT_VARIANTS_ONLY"},
-    {"name": "call_multiple_samples", "class": "boolean", "label":"Multiple Sample Mode", "default": true, "help":"If selected, multiple mappings inputs will not be combined and will instead be separately recalibrated and will be used in multiple sample variant calling"},
+    {"name": "call_multiple_samples", "class": "boolean", "label":"Multiple Sample Mode", "default": true, "help": "When selected, multiple mappings inputs will not be combined and will instead be separately recalibrated and will be used in multiple sample variant calling"},
     {"name": "call_confidence", "class": "float", "label": "Call Threshold", "help": "The call quality required to call a site as variant or reference. Value is in phred-scale confidence", "default": 30.0},
     {"name": "emit_confidence", "class": "float", "label": "Emit Threshold", "help": "The call quality required to write a site (could be written as no-call). Value is in phred-scale confidence", "default": 30.0},
     {"name": "pcr_error_rate", "class": "float", "label": "PCR Error Rate", "help": "The assumed rate of PCR error", "default": 0.0001},
@@ -34,7 +34,7 @@
     {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0},
     {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false},
     {"name": "calculate_BAQ", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters. Possible options are: \"OFF\", \"CALCULATE AS NECESSARY\", and \"RECALCULATE\"", "default": "OFF"},
-    {"name": "BAQ_gap_open_penalty", "class": "float", "label": "BAQ Gap Open Penalty", "help": "If calculate BAQ enabled, what penalty to apply to the calculated BAQ score when a gap is opened", "default": 30.0},
+    {"name": "BAQ_gap_open_penalty", "class": "float", "label": "BAQ Gap Open Penalty", "help": "If 'Calculate BAQ' is enabled, this is the penalty applied to the calculated BAQ score when a gap is opened", "default": 30.0},
     {"name": "no_output_SLOD", "class": "boolean", "label": "Don't Output SLOD", "help": "When selected, SLOD will not be calculated ", "default": false}
   ],
   "outputSpec": [
