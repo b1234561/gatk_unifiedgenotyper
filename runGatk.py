@@ -139,6 +139,9 @@ def main():
                 'compress_reference': job['input']['compress_reference'],
                 'infer_no_call': job['input']['infer_no_call'],
                 'compress_no_call': job['input']['compress_no_call'],
+                'intervals_to_include': job['input'].get('intervals_to_process'),
+                'intervals_to_exclude': job['input'].get('intervals_to_exclude'),
+                'intervals_merging': job['input']['intervals_merging'],
                 'part_number': i,
                 'samples': samples,
                 'call_multiple_samples': job['input']['call_multiple_samples']
@@ -162,6 +165,12 @@ def mapGatk():
 
     regionFile.close()
 
+    if job['input']['intervals_merging'] != "INTERSECTION" and job["input"].get("intervals_to_include") != None:
+        job['input']['interval'] = splitUserInputRegions(job['input']['interval'], job['input']['intervals_to_include'], "-L")
+        if job['input']['interval'] == '':
+            job['output']['id'] = job['input']['tableId']
+            return
+        
     gatkIntervals = open("regions.interval_list", 'w')
     for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job['input']['interval']):
         gatkIntervals.write(x[0] + ":" + x[1] + "-" + x[2] + "\n")
@@ -192,6 +201,12 @@ def mapGatk():
         subprocess.check_call("samtools index input.%d.sorted.bam" % i, shell=True)
         job['input']['command'] += " -I input.%d.sorted.bam" % i
         
+        if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
+            subprocess.check_call('samtools view -h input.bam | awk \'$0~"^@" {print} $0!~"^@" {for (i=1; i<=10; i++) printf $i"\t"; for (i=1; i<=length($10); i++) printf "^"; for (i=12; i<=NF; i++) printf "\t"$i; printf "\n"}\' | samtools view -Sb -o quality.bam -', shell=True)
+            print "Quality scores not present in mappings, adding default scores"
+            subprocess.check_call("mv quality.bam input.%d.sorted.bam" % i, shell=True)
+
+
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
@@ -225,6 +240,11 @@ def buildCommand(job):
         command += " -stand_call_conf " +str(job['input']['call_confidence'])
     if job['input']['emit_confidence'] != 30.0:
         command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
+    if job['input']['intervals_merging'] == "INTERSECTION":
+        if job['input'].get('intervals_to_process') != None:
+            command += " " + job['input']['intervals_to_process']
+    if job['input'].get('intervals_to_exclude') != None:
+        command += " " + job['input']['intervals_to_exclude']
     if job['input']['pcr_error_rate'] != 0.0001:
         command += " -pcr_error " +str(job['input']['pcr_error_rate'])
     if job['input']['heterozygosity'] != 0.001:
@@ -398,3 +418,19 @@ def translateTagTypeToColumnType(tag):
   if tag['type'] == "Float":
     return "double"
   return "string"
+
+def splitUserInputRegions(jobRegions, inputRegions, prefix):
+    
+    jobList = re.findall("-L ([^:]*):(\d+)-(\d+)", jobRegions)    
+    inputList = re.findall("-L ([^:]*):(\d+)-(\d+)", inputRegions)
+    
+    result = ""
+    for x in inputList:
+        for y in jobList:
+            if(x[0] == y[0]):
+                lo = max(int(x[1]), int(y[1]))
+                hi = min(int(x[2]), int(y[2]))
+                if hi > lo:
+                    result += " %s %s:%d-%d" % (prefix, x[0], lo, hi)
+                    
+    return result
