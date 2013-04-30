@@ -78,6 +78,6 @@
     "citations": ["doi:10.1101/gr.107524.110"]
   },
   "access": {"network": ["*"]},
-  "version": "0.0.71",
+  "version": "0.0.72",
   "categories": ["Variation calling"]
 }

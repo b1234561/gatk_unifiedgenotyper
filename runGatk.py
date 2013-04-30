@@ -165,7 +165,7 @@ def mapGatk():
 
     regionFile.close()
 
-    if job['input']['intervals_merging'] != "INTERSECTION" and job["input"].get("intervals_to_include") != None:
+    if job['input']['intervals_merging'] != "INTERSECTION" and job["input"].get("intervals_to_include") != None and job["input"].get("intervals_to_include") != "":
         job['input']['interval'] = splitUserInputRegions(job['input']['interval'], job['input']['intervals_to_include'], "-L")
         if job['input']['interval'] == '':
             job['output']['id'] = job['input']['tableId']
