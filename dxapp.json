@@ -33,7 +33,7 @@
     {"name": "downsample_to_coverage", "class": "int", "label": "Downsample Coverage", "help": "Sites with coverage beyond this will be randomly downsampled to this value", "default": 250, "group": "Advanced Inputs"},
     {"name": "downsample_to_fraction", "class": "float", "label": "Downsample Fraction", "help": "GATK will randomly discard reads down to this fraction (1.0 keeps all reads, 0.0 discards all)", "default": 1.0, "group": "Advanced Inputs"},
     {"name": "nondeterministic", "class": "boolean", "label": "Nondeterministic", "help": "By using a random seed, when this is selected the results of GATK will be slightly different each run", "default": false, "group": "Advanced Inputs"},
-    {"name": "calculate_BAQ", "group": "Advanced Inputs", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters.", "choices": ["OFF", "CALCULATE AS NECESSARY", "RECALCULATE"], "default": "OFF"},
+    {"name": "calculate_BAQ", "group": "Advanced Inputs", "class": "string", "label": "Calculate BAQ", "help": "Calculate per base quality scores, another metric which can be used for filters.", "choices": ["OFF", "CALCULATE_AS_NECESSARY", "RECALCULATE"], "default": "OFF"},
     {"name": "BAQ_gap_open_penalty", "class": "float", "label": "BAQ Gap Open Penalty", "help": "If 'Calculate BAQ' is enabled, this is the penalty applied to the calculated BAQ score when a gap is opened", "default": 30.0, "group": "Advanced Inputs"},
     {"name": "no_output_SLOD", "class": "boolean", "label": "Don't Output SLOD", "help": "When selected, SLOD will not be calculated ", "default": false, "group": "Advanced Inputs"}
   ],
@@ -55,6 +55,6 @@
     "citations": ["doi:10.1101/gr.107524.110"]
   },
   "access": {"network": ["*"]},
-  "version": "0.0.73",
+  "version": "0.0.74",
   "categories": ["Variation calling"]
 }
