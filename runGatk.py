@@ -155,8 +155,19 @@ def main():
 
     job['output'] = {'variants': {'job': reduceJobId, 'field': 'variants'}}
 
-def mapGatk():
+def runAndCatchGATKError(command, shell=True):
+    # Added to capture any errors outputted by GATK
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell)
+    except subprocess.CalledProcessError, e:
+        print e 
+        error = '\n'.join([l for l in e.output.splitlines() if l.startswith('#####')])
+        if error: 
+            raise dxpy.AppError(error)
+        else: 
+            raise dxpy.AppInternalError(e)     
 
+def mapGatk():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     print os.environ
 
@@ -209,13 +220,13 @@ def mapGatk():
 
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
-    subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
+    runAndCatchGATKError("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
     command = job['input']['command'] + job['input']['interval']
+
     #print command
     print "In GATK"
-    subprocess.check_call(command, shell=True)
-    #command += " | "
+    runAndCatchGATKError(command, shell=True)
 
     command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
     if job['input']['compress_reference']:
@@ -230,7 +241,6 @@ def mapGatk():
 
     job['output']['id'] = job['input']['tableId']
     
-
 def buildCommand(job):
 
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf "
@@ -270,8 +280,6 @@ def buildCommand(job):
     if job["input"].get("num_threads") != None:
         if job["input"]["num_threads"] < str(cpu_count) and job["input"]["num_threads"] > 0:
             threads = str(job["input"]["num_threads"])
-
-
 
     command += " --num_threads " + threads
     command += " -L regions.interval_list "
