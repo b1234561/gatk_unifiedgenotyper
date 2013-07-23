@@ -155,8 +155,19 @@ def main():
 
     job['output'] = {'variants': {'job': reduceJobId, 'field': 'variants'}}
 
-def mapGatk():
+def runAndCatchGATKError(command, shell=True):
+    # Added to capture any errors outputted by GATK
+    try:
+        subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell)
+    except subprocess.CalledProcessError, e:
+        print e 
+        error = '\n'.join([l for l in e.output.splitlines() if l.startswith('#####')])
+        if error: 
+            raise dxpy.AppError(error)
+        else: 
+            raise dxpy.AppInternalError(e)     
 
+def mapGatk():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     print os.environ
 
@@ -203,16 +214,22 @@ def mapGatk():
         
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
-    subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
+    runAndCatchGATKError("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
     command = job['input']['command'] + job['input']['interval']
 
+<<<<<<< HEAD
     if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
         print "Quality scores not found in mappings table, adding default quality scores"
         command += " --defaultBaseQualities 20"
 
     print "In GATK"
     subprocess.check_call(command, shell=True)
+=======
+    #print command
+    print "In GATK"
+    runAndCatchGATKError(command, shell=True)
+>>>>>>> 4ba5d0d57dcc6a5ac9b754c39c6304473cec6207
 
     command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
     if job['input']['compress_reference']:
@@ -227,7 +244,6 @@ def mapGatk():
 
     job['output']['id'] = job['input']['tableId']
     
-
 def buildCommand(job):
 
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf "
@@ -268,10 +284,8 @@ def buildCommand(job):
         if job["input"]["num_threads"] < str(cpu_count) and job["input"]["num_threads"] > 0:
             threads = str(job["input"]["num_threads"])
 
-
-
     command += " --num_threads " + threads
-    command += " -L regions.interval_list"
+    command += " -L regions.interval_list "
 
     if job['input']['downsample_to_coverage'] != 250:
         command += " -dcov " + str(job['input']['downsample_to_coverage'])
@@ -284,11 +298,11 @@ def buildCommand(job):
     if job['input']['calculate_BAQ'] != "OFF":
         if job['input']['calculate_BAQ'] != "CALCULATE_AS_NECESSARY" and job['input']['calculate_BAQ'] != "RECALCULATE":
             raise dxpy.AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job['input']['calculate_BAQ'] + " instead")
-        command += "-baq " + job['input']['calculate_BAQ']
+        command += " -baq " + job['input']['calculate_BAQ']
         if job['input']['BAQ_gap_open_penalty'] != 40.0:
-            command += "-baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
+            command += " -baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
     if job['input']['no_output_SLOD']:
-        command += "-nosl"
+        command += " -nosl "
 
     #print command
     return command
