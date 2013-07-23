@@ -201,21 +201,18 @@ def mapGatk():
         subprocess.check_call("samtools index input.%d.sorted.bam" % i, shell=True)
         job['input']['command'] += " -I input.%d.sorted.bam" % i
         
-        if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
-            subprocess.check_call('samtools view -h input.bam | awk \'$0~"^@" {print} $0!~"^@" {for (i=1; i<=10; i++) printf $i"\t"; for (i=1; i<=length($10); i++) printf "^"; for (i=12; i<=NF; i++) printf "\t"$i; printf "\n"}\' | samtools view -Sb -o quality.bam -', shell=True)
-            print "Quality scores not present in mappings, adding default scores"
-            subprocess.check_call("mv quality.bam input.%d.sorted.bam" % i, shell=True)
-
-
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     subprocess.check_call("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
     command = job['input']['command'] + job['input']['interval']
-    #print command
+
+    if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
+        print "Quality scores not found in mappings table, adding default quality scores"
+        command += " --defaultBaseQualities 20"
+
     print "In GATK"
     subprocess.check_call(command, shell=True)
-    #command += " | "
 
     command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
     if job['input']['compress_reference']:

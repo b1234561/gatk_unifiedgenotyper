@@ -5,7 +5,8 @@
   "dxapi": "1.0.0",
   "inputSpec": [
     {"name": "mappings", "class": "array:gtable", "label": "Mappings Objects", "help": "The mapped reads from which variants will be called", "type": "LetterMappings"},
-    {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome against which to call variants", "type": "ContigSet"},
+    {"name": "reference", "class": "record", "label": "Reference Genome", "help": "The reference genome against which to call variants", "type": "ContigSet",
+        "suggestions":[{"name":"Reference Genomes","project":"project-B406Bq0bQ9jB3GVk65200001", "path":"/"}]},
     {"name": "output_name", "class": "string", "label": "Output Name", "help": "The name of the generated variants object", "optional": true},
 
     {"name": "compress_reference", "class": "boolean", "label": "Compress Reference", "help": "When selected, contiguous positions called as reference will be compressed to a single row to save space", "default": true, "group": "Advanced Inputs"},
@@ -55,6 +56,6 @@
     "citations": ["doi:10.1101/gr.107524.110"]
   },
   "access": {"network": ["*"]},
-  "version": "0.0.74",
+  "version": "0.0.75",
   "categories": ["Variation calling"]
 }
