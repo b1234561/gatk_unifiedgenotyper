@@ -218,7 +218,6 @@ def mapGatk():
 
     command = job['input']['command'] + job['input']['interval']
 
-<<<<<<< HEAD
     if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
         print "Quality scores not found in mappings table, adding default quality scores"
         command += " --defaultBaseQualities 20"
