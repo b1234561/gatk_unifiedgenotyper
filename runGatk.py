@@ -224,12 +224,7 @@ def mapGatk():
         command += " --defaultBaseQualities 20"
 
     print "In GATK"
-    subprocess.check_call(command, shell=True)
-=======
-    #print command
-    print "In GATK"
     runAndCatchGATKError(command, shell=True)
->>>>>>> 4ba5d0d57dcc6a5ac9b754c39c6304473cec6207
 
     command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
     if job['input']['compress_reference']:
