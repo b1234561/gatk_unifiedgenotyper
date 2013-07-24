@@ -1,3 +1,4 @@
+*.pyc
 resources/opt/snpEff/data/*
 samtools/*.o
 samtools/*.a
