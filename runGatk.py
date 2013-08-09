@@ -161,11 +161,12 @@ def runAndCatchGATKError(command, shell=True):
         subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell)
     except subprocess.CalledProcessError, e:
         print e 
-        error = '\n'.join([l for l in e.output.splitlines() if l.startswith('#####')])
+        error = '\n'.join([l for l in e.output.splitlines() if l.startswith('##### ERROR MESSAGE:')])
         if error: 
-            raise dxpy.AppError(error)
+            raise dxpy.AppError("App failed with GATK error. Please see logs for more information: {err}".format(err=error))
         else: 
-            raise dxpy.AppInternalError(e)     
+            raise dxpy.AppInternalError("App failed with error. Please see logs for more information: {err}".format(err=e))         
+
 
 def mapGatk():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
@@ -240,7 +241,7 @@ def mapGatk():
     
 def buildCommand(job):
 
-    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf "
+    command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf -rf BadCigar"
     if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job['input']['output_mode'])
     if job['input']['call_confidence'] != 30.0:
