@@ -30,6 +30,7 @@ import os, sys, re, math, operator
 
 from multiprocessing import Pool, cpu_count
 
+@dxpy.entry_point('main')
 def main():
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
