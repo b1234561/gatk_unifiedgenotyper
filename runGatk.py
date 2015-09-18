@@ -31,22 +31,23 @@ import os, sys, re, math, operator
 from multiprocessing import Pool, cpu_count
 
 @dxpy.entry_point('main')
-def main():
+def main(**job_inputs):
+    job_output = {}
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
-    if job['input']['output_mode'] == "EMIT_VARIANTS_ONLY":
-        job['input']['infer_no_call'] = False
+    if job_inputs['output_mode'] == "EMIT_VARIANTS_ONLY":
+        job_inputs['infer_no_call'] = False
 
-    mappingsTable = dxpy.open_dxgtable(job['input']['mappings'][0]['$dnanexus_link'])
+    mappingsTable = dxpy.open_dxgtable(job_inputs['mappings'][0]['$dnanexus_link'])
     mappingsTableId = mappingsTable.get_id()
 
     #This controls the degree of parallelism in GATK
     reads = 0
-    for x in job['input']['mappings']:
+    for x in job_inputs['mappings']:
         reads += int(dxpy.DXGTable(x).describe()['length'])
-    chunks = int(reads/job['input']['reads_per_job'])+1
+    chunks = int(reads/job_inputs['reads_per_job'])+1
 
-    command = buildCommand(job)
+    command = buildCommand(job, job_inputs)
 
     #callVariantsOnSample(mappingsTable, command)
 
@@ -82,10 +83,10 @@ def main():
         description[k] = {'name' : k, 'description' : v['description'], 'type' : v['type'], 'number' : v['number']}
 
     samples = []
-    for i in range(len(job['input']['mappings'])):
-        samples.append(dxpy.DXGTable(job['input']['mappings'][i]).describe()['name'].replace(" ", ""))
-    numSamples = len(job['input']['mappings'])
-    if job['input']['call_multiple_samples'] == False:
+    for i in range(len(job_inputs['mappings'])):
+        samples.append(dxpy.DXGTable(job_inputs['mappings'][i]).describe()['name'].replace(" ", ""))
+    numSamples = len(job_inputs['mappings'])
+    if job_inputs['call_multiple_samples'] == False:
         numSamples = 1
         samples = ["Sample_0"]
     #For each sample, write the sample-specific columns
@@ -109,43 +110,43 @@ def main():
     variantsTable = dxpy.open_dxgtable(tableId)
     variantsTable.add_types(["Variants", "gri"])
 
-    details = {'samples':samples, 'original_contigset':job['input']['reference'], 'original_mappings':job['input']['mappings'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
+    details = {'samples':samples, 'original_contigset':job_inputs['reference'], 'original_mappings':job_inputs['mappings'], 'formats':headerInfo['tags']['format'], 'infos':headerInfo['tags']['info']}
     #if headerInfo.get('filters') != {}:
     #  details['filters'] = headerInfo['filters']
     variantsTable.set_details(details)
 
-    if 'output_name' in job['input']:
-        variantsTable.rename(job['input']['output_name'])
-    elif (job['input']['genotype_likelihood_model'] == "SNP"):
+    if 'output_name' in job_inputs:
+        variantsTable.rename(job_inputs['output_name'])
+    elif (job_inputs['genotype_likelihood_model'] == "SNP"):
         variantsTable.rename(mappingsTable.describe()['name'] + " SNP calls by GATK")
-    elif (job['input']['genotype_likelihood_model'] == "INDEL"):
+    elif (job_inputs['genotype_likelihood_model'] == "INDEL"):
         variantsTable.rename(mappingsTable.describe()['name'] + " indel calls by GATK")
-    elif (job['input']['genotype_likelihood_model'] == "BOTH"):
+    elif (job_inputs['genotype_likelihood_model'] == "BOTH"):
         variantsTable.rename(mappingsTable.describe()['name'] + " SNP and indel calls by GATK")
     else:
         variantsTable.rename(mappingsTable.describe()['name'] + " variant calls by GATK")
 
     reduceInput = {}
-    #commandList = splitGenomeLengthLargePieces(originalContigSet, job['input']['intervals_to_process'], job['input']['intervals_to_exclude'],  job['input']['minimum_chunk_size'], job['input']['maximum_chunks'])
+    #commandList = splitGenomeLengthLargePieces(originalContigSet, job_inputs['intervals_to_process'], job_inputs['intervals_to_exclude'],  job_inputs['minimum_chunk_size'], job_inputs['maximum_chunks'])
     commandList = splitGenomeLengthLargePieces(originalContigSet, chunks)
 
     for i in range(len(commandList)):
         if len(commandList[i]) > 0:
             mapInput = {
-                'mappings_tables': job['input']['mappings'],
+                'mappings_tables': job_inputs['mappings'],
                 'original_contig_set': contigSetId,
                 'interval': commandList[i],
                 'tableId': tableId,
-                'command': buildCommand(job),
-                'compress_reference': job['input']['compress_reference'],
-                'infer_no_call': job['input']['infer_no_call'],
-                'compress_no_call': job['input']['compress_no_call'],
-                'intervals_to_include': job['input'].get('intervals_to_process'),
-                'intervals_to_exclude': job['input'].get('intervals_to_exclude'),
-                'intervals_merging': job['input']['intervals_merging'],
+                'command': buildCommand(job, job_inputs),
+                'compress_reference': job_inputs['compress_reference'],
+                'infer_no_call': job_inputs['infer_no_call'],
+                'compress_no_call': job_inputs['compress_no_call'],
+                'intervals_to_include': job_inputs.get('intervals_to_process'),
+                'intervals_to_exclude': job_inputs.get('intervals_to_exclude'),
+                'intervals_merging': job_inputs['intervals_merging'],
                 'part_number': i,
                 'samples': samples,
-                'call_multiple_samples': job['input']['call_multiple_samples']
+                'call_multiple_samples': job_inputs['call_multiple_samples']
             }
             # Run a "map" job for each chunk
             mapJobId = dxpy.new_dxjob(fn_input=mapInput, fn_name="mapGatk").get_id()
@@ -154,7 +155,9 @@ def main():
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
 
-    job['output'] = {'variants': {'job': reduceJobId, 'field': 'variants'}}
+    job_output = {'variants': {'job': reduceJobId, 'field': 'variants'}}
+
+    return job_output
 
 def runAndCatchGATKError(command, shell=True):
     # Added to capture any errors outputted by GATK
@@ -168,40 +171,40 @@ def runAndCatchGATKError(command, shell=True):
         else: 
             raise dxpy.AppInternalError("App failed with error. Please see logs for more information: {err}".format(err=e))         
 
-
-def mapGatk():
+def mapGatk(**job_inputs):
+    job_output = {}
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
     print os.environ
 
     regionFile = open("regions.txt", 'w')
-    regionFile.write(job['input']['interval'])
+    regionFile.write(job_inputs['interval'])
 
     regionFile.close()
 
-    if job['input']['intervals_merging'] != "INTERSECTION" and job["input"].get("intervals_to_include") != None and job["input"].get("intervals_to_include") != "":
-        job['input']['interval'] = splitUserInputRegions(job['input']['interval'], job['input']['intervals_to_include'], "-L")
-        if job['input']['interval'] == '':
-            job['output']['id'] = job['input']['tableId']
+    if job_inputs['intervals_merging'] != "INTERSECTION" and job_inputs.get("intervals_to_include") != None and job_inputs.get("intervals_to_include") != "":
+        job_inputs['interval'] = splitUserInputRegions(job_inputs['interval'], job_inputs['intervals_to_include'], "-L")
+        if job_inputs['interval'] == '':
+            job_output['id'] = job_inputs['tableId']
             return
-        
+
     gatkIntervals = open("regions.interval_list", 'w')
-    for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job['input']['interval']):
+    for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job_inputs['interval']):
         gatkIntervals.write(x[0] + ":" + x[1] + "-" + x[2] + "\n")
     gatkIntervals.close()
 
     print "Converting Contigset to Fasta"
-    subprocess.check_call("dx-contigset-to-fasta %s ref.fa" % (job['input']['original_contig_set']), shell=True)
+    subprocess.check_call("dx-contigset-to-fasta %s ref.fa" % (job_inputs['original_contig_set']), shell=True)
 
-    for i in range(len(job['input']['mappings_tables'])):
-        mappingsTableId = dxpy.DXGTable(job['input']['mappings_tables'][i]).get_id()
+    for i in range(len(job_inputs['mappings_tables'])):
+        mappingsTableId = dxpy.DXGTable(job_inputs['mappings_tables'][i]).get_id()
 
-        if job['input']['call_multiple_samples'] == False:
+        if job_inputs['call_multiple_samples'] == False:
             sample = "Sample_0"
         else:
-            sample = job['input']['samples'][i]
+            sample = job_inputs['samples'][i]
 
         print "Converting Table to SAM"
-        #subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt --sample %s" % (job['input']['mappings_table_id']), shell=True)
+        #subprocess.check_call("dx-mappings-to-sam %s --output input.sam --region_index_offset -1 --region_file regions.txt --sample %s" % (job_inputs['mappings_table_id']), shell=True)
         subprocess.check_call("dx_mappings_to_sam.py %s --output input.%d.sam --region_index_offset -1 --region_file regions.txt --sample %s" % (mappingsTableId, i, sample), shell=True)
         if checkSamContainsRead("input.%d.sam" % i):
             print "Converting to BAM"
@@ -212,13 +215,13 @@ def mapGatk():
         subprocess.check_call("samtools sort input.%d.bam input.%d.sorted" % (i, i), shell=True)
         print "Indexing"
         subprocess.check_call("samtools index input.%d.sorted.bam" % i, shell=True)
-        job['input']['command'] += " -I input.%d.sorted.bam" % i
-        
+        job_inputs['command'] += " -I input.%d.sorted.bam" % i
+
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     runAndCatchGATKError("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
 
-    command = job['input']['command'] + job['input']['interval']
+    command = job_inputs['command'] + job_inputs['interval']
 
     if 'quality' not in dxpy.DXGTable(mappingsTableId).get_col_names():
         print "Quality scores not found in mappings table, adding default quality scores"
@@ -227,77 +230,78 @@ def mapGatk():
     print "In GATK"
     runAndCatchGATKError(command, shell=True)
 
-    command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job['input']['tableId'])
-    if job['input']['compress_reference']:
+    command = "dx_vcfToVariants2 --table_id %s --vcf_file output.vcf --region_file regions.txt" % (job_inputs['tableId'])
+    if job_inputs['compress_reference']:
         command += " --compress_reference"
-    if job['input']['infer_no_call']:
+    if job_inputs['infer_no_call']:
         command += " --infer_no_call"
-    if job['input']['compress_no_call']:
+    if job_inputs['compress_no_call']:
         command += " --compress_no_call"
 
     print "Parsing Variants"
     subprocess.check_call(command, shell=True)
 
-    job['output']['id'] = job['input']['tableId']
-    
-def buildCommand(job):
+    job_output['id'] = job_inputs['tableId']
 
+    return job_output
+
+def buildCommand(job, job_inputs):
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf -rf BadCigar"
-    if job['input']['output_mode'] != "EMIT_VARIANTS_ONLY":
-        command += " -out_mode " + (job['input']['output_mode'])
-    if job['input']['call_confidence'] != 30.0:
-        command += " -stand_call_conf " +str(job['input']['call_confidence'])
-    if job['input']['emit_confidence'] != 30.0:
-        command += " -stand_emit_conf " +str(job['input']['emit_confidence'])
-    if job['input']['intervals_merging'] == "INTERSECTION":
-        if job['input'].get('intervals_to_process') != None:
-            command += " " + job['input']['intervals_to_process']
-    if job['input'].get('intervals_to_exclude') != None:
-        command += " " + job['input']['intervals_to_exclude']
-    if job['input']['pcr_error_rate'] != 0.0001:
-        command += " -pcr_error " +str(job['input']['pcr_error_rate'])
-    if job['input']['heterozygosity'] != 0.001:
-        command += " -hets " + str(job['input']['heterozygosity'])
-    if job['input']['indel_heterozygosity'] != 0.000125:
-        command += " -indelHeterozygosity " + str(job['input']['indel_heterozygosity'])
-    if job['input']['genotype_likelihood_model'] != "SNP":
-        command += " -glm " + job['input']['genotype_likelihood_model']
-    if job['input']['minimum_base_quality'] != 17:
-        command += " -mbq " + str(job['input']['minimum_base_quality'])
-    if job['input']['max_alternate_alleles'] != 3:
-        command += " -maxAlleles " + str(job['input']['max_alternate_alleles'])
-    if job['input']['max_deletion_fraction'] != 0.05:
-        command += " -deletions " + str(job['input']['max_deletion_fraction'])
-    if job['input']['min_indel_count'] != 5:
-        command += " -minIndelCnt " + str(job['input']['min_indel_count'])
-    if job['input']['non_reference_probability_model'] != "EXACT":
-        if job['input']['non_reference_probability_model'] != "GRID_SEARCH":
-            raise dxpy.AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job['input']['non_reference_probability_model'] + " instead")
-        command += " -pnrm " + str(job['input']['non_reference_probability_model'])
+    if job_inputs['output_mode'] != "EMIT_VARIANTS_ONLY":
+        command += " -out_mode " + (job_inputs['output_mode'])
+    if job_inputs['call_confidence'] != 30.0:
+        command += " -stand_call_conf " +str(job_inputs['call_confidence'])
+    if job_inputs['emit_confidence'] != 30.0:
+        command += " -stand_emit_conf " +str(job_inputs['emit_confidence'])
+    if job_inputs['intervals_merging'] == "INTERSECTION":
+        if job_inputs.get('intervals_to_process') != None:
+            command += " " + job_inputs['intervals_to_process']
+    if job_inputs.get('intervals_to_exclude') != None:
+        command += " " + job_inputs['intervals_to_exclude']
+    if job_inputs['pcr_error_rate'] != 0.0001:
+        command += " -pcr_error " +str(job_inputs['pcr_error_rate'])
+    if job_inputs['heterozygosity'] != 0.001:
+        command += " -hets " + str(job_inputs['heterozygosity'])
+    if job_inputs['indel_heterozygosity'] != 0.000125:
+        command += " -indelHeterozygosity " + str(job_inputs['indel_heterozygosity'])
+    if job_inputs['genotype_likelihood_model'] != "SNP":
+        command += " -glm " + job_inputs['genotype_likelihood_model']
+    if job_inputs['minimum_base_quality'] != 17:
+        command += " -mbq " + str(job_inputs['minimum_base_quality'])
+    if job_inputs['max_alternate_alleles'] != 3:
+        command += " -maxAlleles " + str(job_inputs['max_alternate_alleles'])
+    if job_inputs['max_deletion_fraction'] != 0.05:
+        command += " -deletions " + str(job_inputs['max_deletion_fraction'])
+    if job_inputs['min_indel_count'] != 5:
+        command += " -minIndelCnt " + str(job_inputs['min_indel_count'])
+    if job_inputs['non_reference_probability_model'] != "EXACT":
+        if job_inputs['non_reference_probability_model'] != "GRID_SEARCH":
+            raise dxpy.AppError("Option \"Probability Model\" must be either \"EXACT\" or \"GRID_SEARCH\". Found " + job_inputs['non_reference_probability_model'] + " instead")
+        command += " -pnrm " + str(job_inputs['non_reference_probability_model'])
 
     threads = str(cpu_count())
-    if job["input"].get("num_threads") != None:
-        if job["input"]["num_threads"] < str(cpu_count) and job["input"]["num_threads"] > 0:
-            threads = str(job["input"]["num_threads"])
+    if job_inputs.get("num_threads") != None:
+        if job_inputs["num_threads"] < str(cpu_count) and job_inputs["num_threads"] > 0:
+            threads = str(job_inputs["num_threads"])
 
     command += " --num_threads " + threads
     command += " -L regions.interval_list "
 
-    if job['input']['downsample_to_coverage'] != 250:
-        command += " -dcov " + str(job['input']['downsample_to_coverage'])
-    elif job['input']['downsample_to_fraction'] != 1.0:
-        command += " -dfrac " + str(job['input']['downsample_to_fraction'])
+    if job_inputs['downsample_to_coverage'] != 250:
+        command += " -dcov " + str(job_inputs['downsample_to_coverage'])
+    elif job_inputs['downsample_to_fraction'] != 1.0:
+        command += " -dfrac " + str(job_inputs['downsample_to_fraction'])
 
-    if job['input']['nondeterministic']:
+    if job_inputs['nondeterministic']:
         command += " -ndrs "
 
-    if job['input']['calculate_BAQ'] != "OFF":
-        if job['input']['calculate_BAQ'] != "CALCULATE_AS_NECESSARY" and job['input']['calculate_BAQ'] != "RECALCULATE":
-            raise dxpy.AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job['input']['calculate_BAQ'] + " instead")
-        command += " -baq " + job['input']['calculate_BAQ']
-        if job['input']['BAQ_gap_open_penalty'] != 40.0:
-            command += " -baqGOP " + str(job['input']['BAQ_gap_open_penalty'])
-    if job['input']['no_output_SLOD']:
+    if job_inputs['calculate_BAQ'] != "OFF":
+        if job_inputs['calculate_BAQ'] != "CALCULATE_AS_NECESSARY" and job_inputs['calculate_BAQ'] != "RECALCULATE":
+            raise dxpy.AppError("Option \"Calculate BAQ\" must be either \"OFF\" or or \"CALCULATE_AS_NECESSARY\" \"RECALCULATE\". Found " + job_inputs['calculate_BAQ'] + " instead")
+        command += " -baq " + job_inputs['calculate_BAQ']
+        if job_inputs['BAQ_gap_open_penalty'] != 40.0:
+            command += " -baqGOP " + str(job_inputs['BAQ_gap_open_penalty'])
+    if job_inputs['no_output_SLOD']:
         command += " -nosl "
 
     #print command
@@ -317,11 +321,14 @@ def runTrivialTest(contig_set, command):
     subprocess.call(command, shell=True)
     return extractHeader(open("output.vcf", 'r'))
 
-def reduceGatk():
-    t = dxpy.open_dxgtable(job['input']['tableId'])
+def reduceGatk(**job_inputs):
+    job_output = {}
+    t = dxpy.open_dxgtable(job_inputs['tableId'])
     print "Closing Table"
     t.close()
-    job['output']['variants'] = dxpy.dxlink(t.get_id())
+    job_output['variants'] = dxpy.dxlink(t.get_id())
+
+    return job_output
 
 def checkIntervalRange(includeList, chromosome, lo, hi):
     included = False
@@ -353,7 +360,6 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
     for i in range(len(names)):
         print names[i]+":"+str(sizes[i])
 
-
     commandList = []
     for i in range(chunks):
         commandList.append('')
@@ -378,7 +384,7 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
     return commandList
 
 def callVariantsOnSample(mappingsTable, command):
-    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output dummy.sam --end_row 100" % (job['input']['mappings_table_id']), shell=True)
+    subprocess.check_call("dx_mappingsTableToSam --table_id %s --output dummy.sam --end_row 100" % (job_inputs['mappings_table_id']), shell=True)
 
 def extractHeader(vcfFileName, elevatedTags):
     result = {'columns': '', 'tags' : {'format' : {}, 'info' : {} }, 'filters' : {}}
@@ -427,10 +433,9 @@ def translateTagTypeToColumnType(tag):
   return "string"
 
 def splitUserInputRegions(jobRegions, inputRegions, prefix):
-    
     jobList = re.findall("-L ([^:]*):(\d+)-(\d+)", jobRegions)    
     inputList = re.findall("-L ([^:]*):(\d+)-(\d+)", inputRegions)
-    
+
     result = ""
     for x in inputList:
         for y in jobList:
@@ -439,5 +444,5 @@ def splitUserInputRegions(jobRegions, inputRegions, prefix):
                 hi = min(int(x[2]), int(y[2]))
                 if hi > lo:
                     result += " %s %s:%d-%d" % (prefix, x[0], lo, hi)
-                    
+
     return result
