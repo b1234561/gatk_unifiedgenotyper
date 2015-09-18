@@ -171,6 +171,7 @@ def runAndCatchGATKError(command, shell=True):
         else: 
             raise dxpy.AppInternalError("App failed with error. Please see logs for more information: {err}".format(err=e))         
 
+@dxpy.entry_point('mapGatk')
 def mapGatk(**job_inputs):
     job_output = {}
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
@@ -321,6 +322,7 @@ def runTrivialTest(contig_set, command):
     subprocess.call(command, shell=True)
     return extractHeader(open("output.vcf", 'r'))
 
+@dxpy.entry_point('reduceGatk')
 def reduceGatk(**job_inputs):
     job_output = {}
     t = dxpy.open_dxgtable(job_inputs['tableId'])
