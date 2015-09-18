@@ -47,7 +47,7 @@ def main(**job_inputs):
         reads += int(dxpy.DXGTable(x).describe()['length'])
     chunks = int(reads/job_inputs['reads_per_job'])+1
 
-    command = buildCommand(job, job_inputs)
+    command = buildCommand(job_inputs)
 
     #callVariantsOnSample(mappingsTable, command)
 
@@ -137,7 +137,7 @@ def main(**job_inputs):
                 'original_contig_set': contigSetId,
                 'interval': commandList[i],
                 'tableId': tableId,
-                'command': buildCommand(job, job_inputs),
+                'command': buildCommand(job_inputs),
                 'compress_reference': job_inputs['compress_reference'],
                 'infer_no_call': job_inputs['infer_no_call'],
                 'compress_no_call': job_inputs['compress_no_call'],
@@ -245,7 +245,7 @@ def mapGatk(**job_inputs):
 
     return job_output
 
-def buildCommand(job, job_inputs):
+def buildCommand(job_inputs):
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf -rf BadCigar"
     if job_inputs['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job_inputs['output_mode'])
