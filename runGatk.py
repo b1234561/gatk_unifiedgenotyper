@@ -186,7 +186,7 @@ def mapGatk(**job_inputs):
         job_inputs['interval'] = splitUserInputRegions(job_inputs['interval'], job_inputs['intervals_to_include'], "-L")
         if job_inputs['interval'] == '':
             job_output['id'] = job_inputs['tableId']
-            return
+            return job_output
 
     gatkIntervals = open("regions.interval_list", 'w')
     for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job_inputs['interval']):
