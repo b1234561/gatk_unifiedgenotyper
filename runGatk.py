@@ -32,7 +32,6 @@ from multiprocessing import Pool, cpu_count
 
 @dxpy.entry_point('main')
 def main(**job_inputs):
-    job_output = {}
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar'
 
     if job_inputs['output_mode'] == "EMIT_VARIANTS_ONLY":
@@ -49,7 +48,7 @@ def main(**job_inputs):
 
     command = buildCommand(job_inputs)
 
-    #callVariantsOnSample(mappingsTable, command)
+    #callVariantsOnSample(job_inputs, mappingsTable, command)
 
     try:
         contigSetId = mappingsTable.get_details()['original_contigset']['$dnanexus_link']
@@ -155,9 +154,8 @@ def main(**job_inputs):
     reduceInput['tableId'] = tableId
     reduceJobId = dxpy.new_dxjob(fn_input=reduceInput, fn_name="reduceGatk").get_id()
 
-    job_output = {'variants': {'job': reduceJobId, 'field': 'variants'}}
-
-    return job_output
+    output = {'variants': {'job': reduceJobId, 'field': 'variants'}}
+    return output
 
 def runAndCatchGATKError(command, shell=True):
     # Added to capture any errors outputted by GATK
@@ -173,8 +171,8 @@ def runAndCatchGATKError(command, shell=True):
 
 @dxpy.entry_point('mapGatk')
 def mapGatk(**job_inputs):
-    job_output = {}
     os.environ['CLASSPATH'] = '/opt/jar/AddOrReplaceReadGroups.jar:/opt/jar/GenomeAnalysisTK.jar:opt/jar/CreateSequenceDictionary.jar'
+    output = {}
     print os.environ
 
     regionFile = open("regions.txt", 'w')
@@ -185,9 +183,9 @@ def mapGatk(**job_inputs):
     if job_inputs['intervals_merging'] != "INTERSECTION" and job_inputs.get("intervals_to_include") != None and job_inputs.get("intervals_to_include") != "":
         job_inputs['interval'] = splitUserInputRegions(job_inputs['interval'], job_inputs['intervals_to_include'], "-L")
         if job_inputs['interval'] == '':
-            job_output['id'] = job_inputs['tableId']
-            return job_output
-
+            output['id'] = job_inputs['tableId']
+            return output
+        
     gatkIntervals = open("regions.interval_list", 'w')
     for x in re.findall("-L ([^:]*):(\d+)-(\d+)", job_inputs['interval']):
         gatkIntervals.write(x[0] + ":" + x[1] + "-" + x[2] + "\n")
@@ -242,10 +240,9 @@ def mapGatk(**job_inputs):
     print "Parsing Variants"
     subprocess.check_call(command, shell=True)
 
-    job_output['id'] = job_inputs['tableId']
-
-    return job_output
-
+    output['id'] = job_inputs['tableId']
+    return output
+    
 def buildCommand(job_inputs):
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf -rf BadCigar"
     if job_inputs['output_mode'] != "EMIT_VARIANTS_ONLY":
@@ -324,13 +321,14 @@ def runTrivialTest(contig_set, command):
 
 @dxpy.entry_point('reduceGatk')
 def reduceGatk(**job_inputs):
-    job_output = {}
+    output = {}
+
     t = dxpy.open_dxgtable(job_inputs['tableId'])
     print "Closing Table"
     t.close()
-    job_output['variants'] = dxpy.dxlink(t.get_id())
+    output['variants'] = dxpy.dxlink(t.get_id())
 
-    return job_output
+    return output
 
 def checkIntervalRange(includeList, chromosome, lo, hi):
     included = False
@@ -385,7 +383,7 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
             currentLength = 0
     return commandList
 
-def callVariantsOnSample(mappingsTable, command):
+def callVariantsOnSample(job_inputs, mappingsTable, command):
     subprocess.check_call("dx_mappingsTableToSam --table_id %s --output dummy.sam --end_row 100" % (job_inputs['mappings_table_id']), shell=True)
 
 def extractHeader(vcfFileName, elevatedTags):
