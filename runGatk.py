@@ -215,7 +215,7 @@ def mapGatk(**job_inputs):
         print "Indexing"
         subprocess.check_call("samtools index input.%d.sorted.bam" % i, shell=True)
         job_inputs['command'] += " -I input.%d.sorted.bam" % i
-        
+
     print "Indexing Reference"
     subprocess.check_call("samtools faidx ref.fa", shell=True)
     runAndCatchGATKError("java -Xmx4g net.sf.picard.sam.CreateSequenceDictionary REFERENCE=ref.fa OUTPUT=ref.dict" ,shell=True)
@@ -244,7 +244,6 @@ def mapGatk(**job_inputs):
     return output
     
 def buildCommand(job_inputs):
-
     command = "java -Xmx4g org.broadinstitute.sting.gatk.CommandLineGATK -T UnifiedGenotyper -R ref.fa -o output.vcf -rf BadCigar"
     if job_inputs['output_mode'] != "EMIT_VARIANTS_ONLY":
         command += " -out_mode " + (job_inputs['output_mode'])
@@ -361,7 +360,6 @@ def splitGenomeLengthLargePieces(contig_set, chunks):
     for i in range(len(names)):
         print names[i]+":"+str(sizes[i])
 
-
     commandList = []
     for i in range(chunks):
         commandList.append('')
@@ -435,10 +433,9 @@ def translateTagTypeToColumnType(tag):
   return "string"
 
 def splitUserInputRegions(jobRegions, inputRegions, prefix):
-    
     jobList = re.findall("-L ([^:]*):(\d+)-(\d+)", jobRegions)    
     inputList = re.findall("-L ([^:]*):(\d+)-(\d+)", inputRegions)
-    
+
     result = ""
     for x in inputList:
         for y in jobList:
@@ -447,5 +444,5 @@ def splitUserInputRegions(jobRegions, inputRegions, prefix):
                 hi = min(int(x[2]), int(y[2]))
                 if hi > lo:
                     result += " %s %s:%d-%d" % (prefix, x[0], lo, hi)
-                    
+
     return result
